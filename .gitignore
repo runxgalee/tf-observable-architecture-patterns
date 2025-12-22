@@ -31,3 +31,8 @@ credentials.json
 service-account-key.json
 *.pem
 *.key
+
+# AI Tools
+.claude/
+.serena/
+.mcp.json

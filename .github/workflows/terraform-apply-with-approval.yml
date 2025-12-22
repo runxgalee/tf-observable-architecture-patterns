@@ -54,87 +54,10 @@ jobs:
             echo "No pattern changes detected"
           fi
 
-  terraform-apply-dev:
-    name: Apply Dev - ${{ matrix.pattern }}
-    runs-on: ubuntu-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.has_changes == 'true'
-    strategy:
-      matrix:
-        pattern: ${{ fromJson(needs.detect-changes.outputs.patterns) }}
-      fail-fast: false
-    defaults:
-      run:
-        working-directory: architectures/${{ matrix.pattern }}/gcp/environments/dev
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: ${{ env.TF_VERSION }}
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
-          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
-
-      - name: Terraform Format Check
-        id: fmt
-        run: terraform fmt -check -recursive
-        continue-on-error: true
-
-      - name: Terraform Init
-        run: terraform init
-
-      - name: Terraform Validate
-        id: validate
-        run: terraform validate -no-color
-
-      - name: Setup TFLint
-        uses: terraform-linters/setup-tflint@v4
-        with:
-          tflint_version: latest
-
-      - name: Run TFLint
-        id: tflint
-        run: |
-          tflint --init
-          tflint --format compact
-        continue-on-error: true
-
-      - name: Terraform Plan
-        id: plan
-        run: |
-          terraform plan -out=tfplan -no-color
-        continue-on-error: true
-
-      - name: Check Validation Results
-        if: steps.fmt.outcome == 'failure' || steps.validate.outcome == 'failure'
-        run: |
-          echo "::error::Validation failed for ${{ matrix.pattern }}/dev"
-          echo "Format check: ${{ steps.fmt.outcome }}"
-          echo "Validate: ${{ steps.validate.outcome }}"
-          echo "TFLint: ${{ steps.tflint.outcome }}"
-          exit 1
-
-      - name: Terraform Apply
-        if: steps.plan.outcome == 'success'
-        run: terraform apply -auto-approve tfplan
-
-      - name: Comment on failure
-        if: steps.plan.outcome == 'failure'
-        run: |
-          echo "::error::Terraform plan failed for ${{ matrix.pattern }}/dev"
-          exit 1
-
   terraform-apply-prod:
     name: Apply Prod - ${{ matrix.pattern }}
     runs-on: ubuntu-latest
-    needs: [detect-changes, terraform-apply-dev]
+    needs: [detect-changes]
     if: needs.detect-changes.outputs.has_changes == 'true'
     environment:
       name: production
@@ -213,7 +136,7 @@ jobs:
   summary:
     name: Deployment Summary
     runs-on: ubuntu-latest
-    needs: [detect-changes, terraform-apply-dev, terraform-apply-prod]
+    needs: [detect-changes, terraform-apply-prod]
     if: always()
     steps:
       - name: Summary
@@ -221,5 +144,4 @@ jobs:
           echo "## Terraform Apply Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Patterns processed:** ${{ needs.detect-changes.outputs.patterns }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Dev Status:** ${{ needs.terraform-apply-dev.result }}" >> $GITHUB_STEP_SUMMARY
           echo "**Prod Status:** ${{ needs.terraform-apply-prod.result }}" >> $GITHUB_STEP_SUMMARY
