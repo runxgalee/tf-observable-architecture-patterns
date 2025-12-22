@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Script to detect which patterns have changed
-# Usage: ./scripts/detect-changed-patterns.sh [base_ref] [head_ref]
-# Example: ./scripts/detect-changed-patterns.sh main HEAD
-# Example: ./scripts/detect-changed-patterns.sh HEAD~1 HEAD
+# Script to detect which architectures have changed
+# Usage: ./scripts/detect-changed-architectures.sh [base_ref] [head_ref]
+# Example: ./scripts/detect-changed-architectures.sh main HEAD
+# Example: ./scripts/detect-changed-architectures.sh HEAD~1 HEAD
 
 set -e
 
@@ -26,8 +26,8 @@ echo "Changed files:"
 echo "$CHANGED_FILES"
 echo ""
 
-# Extract patterns
-PATTERNS=$(echo "$CHANGED_FILES" | grep '^patterns/' | cut -d'/' -f2 | sort -u)
+# Extract architectures
+PATTERNS=$(echo "$CHANGED_FILES" | grep '^architectures/' | cut -d'/' -f2 | sort -u)
 
 if [ -z "$PATTERNS" ]; then
     echo "No pattern changes detected"
@@ -45,12 +45,12 @@ for pattern in $PATTERNS; do
     echo ""
     echo "Pattern: $pattern"
 
-    if [ -d "patterns/$pattern/gcp/environments" ]; then
-        ENVIRONMENTS=$(ls -1 "patterns/$pattern/gcp/environments" 2>/dev/null || echo "")
+    if [ -d "architectures/$pattern/gcp/environments" ]; then
+        ENVIRONMENTS=$(ls -1 "architectures/$pattern/gcp/environments" 2>/dev/null || echo "")
         if [ -n "$ENVIRONMENTS" ]; then
             for env in $ENVIRONMENTS; do
-                if [ -d "patterns/$pattern/gcp/environments/$env" ]; then
-                    echo "  - $env (patterns/$pattern/gcp/environments/$env)"
+                if [ -d "architectures/$pattern/gcp/environments/$env" ]; then
+                    echo "  - $env (architectures/$pattern/gcp/environments/$env)"
                 fi
             done
         else

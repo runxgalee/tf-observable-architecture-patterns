@@ -20,8 +20,8 @@ echo "Changed Terraform files:"
 echo "$CHANGED_TF_FILES"
 echo ""
 
-# Extract patterns from changed files
-PATTERNS=$(echo "$CHANGED_TF_FILES" | grep '^patterns/' | cut -d'/' -f2 | sort -u || true)
+# Extract architectures from changed files
+PATTERNS=$(echo "$CHANGED_TF_FILES" | grep '^architectures/' | cut -d'/' -f2 | sort -u || true)
 
 if [ -z "$PATTERNS" ]; then
     echo "No pattern files changed, skipping validation"

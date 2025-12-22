@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'patterns/**'
+      - '../../architectures/**'
 
 permissions:
   contents: read
@@ -20,7 +20,7 @@ jobs:
     name: Detect Changed Patterns
     runs-on: ubuntu-latest
     outputs:
-      patterns: ${{ steps.detect.outputs.patterns }}
+      patterns: ${{ steps.detect.outputs.architectures }}
       has_changes: ${{ steps.detect.outputs.has_changes }}
     steps:
       - name: Checkout
@@ -28,7 +28,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Detect changed patterns
+      - name: Detect changed architectures
         id: detect
         run: |
           # Get changed files from the last commit
@@ -65,7 +65,7 @@ jobs:
       fail-fast: false
     defaults:
       run:
-        working-directory: patterns/${{ matrix.pattern }}/gcp/environments/dev
+        working-directory: architectures/${{ matrix.pattern }}/gcp/environments/dev
 
     steps:
       - name: Checkout
@@ -144,7 +144,7 @@ jobs:
       fail-fast: false
     defaults:
       run:
-        working-directory: patterns/${{ matrix.pattern }}/gcp/environments/prod
+        working-directory: architectures/${{ matrix.pattern }}/gcp/environments/prod
 
     steps:
       - name: Checkout

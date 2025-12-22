@@ -3,13 +3,13 @@ name: Terraform CI
 on:
   pull_request:
     paths:
-      - 'patterns/**'
+      - '../../architectures/**'
       - '.github/workflows/terraform-*.yml'
   push:
     branches:
       - main
     paths:
-      - 'patterns/**'
+      - '../../architectures/**'
       - '.github/workflows/terraform-*.yml'
 
 permissions:
@@ -24,7 +24,7 @@ jobs:
     name: Detect Changed Patterns
     runs-on: ubuntu-latest
     outputs:
-      patterns: ${{ steps.detect.outputs.patterns }}
+      patterns: ${{ steps.detect.outputs.architectures }}
       has_changes: ${{ steps.detect.outputs.has_changes }}
       all_patterns: ${{ steps.detect.outputs.all_patterns }}
     steps:
@@ -33,11 +33,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Detect changed patterns
+      - name: Detect changed architectures
         id: detect
         run: |
           # Get all patterns
-          ALL_PATTERNS=$(find patterns -maxdepth 1 -mindepth 1 -type d -exec basename {} \; | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          ALL_PATTERNS=$(find architectures -maxdepth 1 -mindepth 1 -type d -exec basename {} \; | jq -R -s -c 'split("\n") | map(select(length > 0))')
           echo "all_patterns=$ALL_PATTERNS" >> $GITHUB_OUTPUT
 
           # Get changed patterns
@@ -51,7 +51,7 @@ jobs:
           echo "$CHANGED_FILES"
 
           PATTERNS=$(echo "$CHANGED_FILES" | \
-            grep '^patterns/' | \
+            grep '^architectures/' | \
             cut -d'/' -f2 | \
             sort -u | \
             jq -R -s -c 'split("\n") | map(select(length > 0))')
@@ -89,7 +89,7 @@ jobs:
         id: fmt
         run: |
           echo "Checking format for pattern: ${{ matrix.pattern }}"
-          cd patterns/${{ matrix.pattern }}/gcp
+          cd architectures/${{ matrix.pattern }}/gcp
           terraform fmt -check -recursive -diff
 
       - name: Upload format issues
@@ -110,7 +110,7 @@ jobs:
       fail-fast: false
     defaults:
       run:
-        working-directory: patterns/${{ matrix.pattern }}/gcp/environments/${{ matrix.environment }}
+        working-directory: architectures/${{ matrix.pattern }}/gcp/environments/${{ matrix.environment }}
 
     steps:
       - name: Checkout
@@ -149,12 +149,12 @@ jobs:
 
       - name: Init TFLint
         run: |
-          cd patterns/${{ matrix.pattern }}/gcp
+          cd architectures/${{ matrix.pattern }}/gcp
           tflint --init
 
       - name: Run TFLint on modules
         run: |
-          cd patterns/${{ matrix.pattern }}/gcp/modules
+          cd architectures/${{ matrix.pattern }}/gcp/modules
           for module in */; do
             echo "Linting module: ${module}"
             cd "$module"
@@ -164,7 +164,7 @@ jobs:
 
       - name: Run TFLint on environments
         run: |
-          cd patterns/${{ matrix.pattern }}/gcp/environments
+          cd architectures/${{ matrix.pattern }}/gcp/environments
           for env in */; do
             echo "Linting environment: ${env}"
             cd "$env"
@@ -188,7 +188,7 @@ jobs:
 
       - name: Check README exists
         run: |
-          if [ ! -f "patterns/${{ matrix.pattern }}/gcp/README.md" ]; then
+          if [ ! -f "architectures/${{ matrix.pattern }}/gcp/README.md" ]; then
             echo "::warning::README.md not found for ${{ matrix.pattern }}"
           else
             echo "✓ README.md exists"
@@ -196,7 +196,7 @@ jobs:
 
       - name: Check module documentation
         run: |
-          MODULE_PATH="patterns/${{ matrix.pattern }}/gcp/modules"
+          MODULE_PATH="architectures/${{ matrix.pattern }}/gcp/modules"
           if [ -d "$MODULE_PATH" ]; then
             for module in "$MODULE_PATH"/*; do
               if [ -d "$module" ]; then
@@ -231,17 +231,9 @@ jobs:
         uses: aquasecurity/trivy-action@0.29.0
         with:
           scan-type: 'config'
-          scan-ref: 'patterns/${{ matrix.pattern }}/gcp'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
+          scan-ref: 'architectures/${{ matrix.pattern }}/gcp'
+          format: 'table'
           exit-code: '0'
-
-      - name: Upload Trivy results
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: 'trivy-results.sarif'
-          category: 'trivy-${{ matrix.pattern }}'
 
   test-terraform-syntax:
     name: Syntax Test - ${{ matrix.pattern }}
@@ -264,7 +256,7 @@ jobs:
 
       - name: Test module syntax
         run: |
-          cd patterns/${{ matrix.pattern }}/gcp/modules
+          cd architectures/${{ matrix.pattern }}/gcp/modules
           for module in */; do
             echo "Testing syntax for module: ${module}"
             cd "$module"

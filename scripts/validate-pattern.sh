@@ -13,11 +13,11 @@ if [ -z "$PATTERN" ]; then
     echo "Usage: $0 <pattern-name>"
     echo ""
     echo "Available patterns:"
-    ls -1 patterns/
+    ls -1 architectures/
     exit 1
 fi
 
-PATTERN_PATH="patterns/$PATTERN/gcp"
+PATTERN_PATH="architectures/$PATTERN/gcp"
 
 if [ ! -d "$PATTERN_PATH" ]; then
     echo "Error: Pattern '$PATTERN' not found at $PATTERN_PATH"

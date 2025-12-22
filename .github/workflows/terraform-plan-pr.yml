@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - 'patterns/**'
+      - '../../architectures/**'
 
 permissions:
   contents: read
@@ -20,7 +20,7 @@ jobs:
     name: Detect Changed Patterns
     runs-on: ubuntu-latest
     outputs:
-      patterns: ${{ steps.detect.outputs.patterns }}
+      patterns: ${{ steps.detect.outputs.architectures }}
       has_changes: ${{ steps.detect.outputs.has_changes }}
     steps:
       - name: Checkout
@@ -28,7 +28,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Detect changed patterns
+      - name: Detect changed architectures
         id: detect
         run: |
           # Get changed files in PR
@@ -67,7 +67,7 @@ jobs:
       fail-fast: false
     defaults:
       run:
-        working-directory: patterns/${{ matrix.pattern }}/gcp/environments/${{ matrix.environment }}
+        working-directory: architectures/${{ matrix.pattern }}/gcp/environments/${{ matrix.environment }}
 
     steps:
       - name: Checkout
@@ -130,7 +130,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: plan-${{ matrix.pattern }}-${{ matrix.environment }}
-          path: patterns/${{ matrix.pattern }}/gcp/environments/${{ matrix.environment }}/plan-summary.txt
+          path: architectures/${{ matrix.pattern }}/gcp/environments/${{ matrix.environment }}/plan-summary.txt
           retention-days: 5
 
       - name: Comment on PR

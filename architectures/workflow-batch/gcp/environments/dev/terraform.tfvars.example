@@ -1,0 +1,41 @@
+# =============================================
+# Development Environment Configuration
+# =============================================
+# Copy this file to terraform.tfvars and update values
+# =============================================
+
+# Required
+project_id = "your-gcp-project-id"
+
+# Optional - Override defaults
+# region             = "asia-northeast1"
+# service_name       = "workflow-batch"
+
+# Cloud Scheduler Configuration
+# scheduler_schedule  = "0 9 * * *"        # Daily at 9:00 AM JST
+# scheduler_time_zone = "Asia/Tokyo"
+
+# Cloud Run Job Configuration
+# job_task_count  = 1
+# job_max_retries = 3
+# job_timeout     = "600s"  # 10 minutes
+# job_cpu         = "1000m"
+# job_memory      = "512Mi"
+# job_image       = "gcr.io/cloudrun/hello"  # Replace with your image
+
+# Environment Variables for the job
+# job_env_vars = {
+#   LOG_LEVEL = "debug"
+#   BATCH_SIZE = "100"
+# }
+
+# Monitoring Configuration
+# enable_monitoring     = true
+# alert_email           = "your-email@example.com"
+# job_failure_threshold = 2
+
+# Labels
+# labels = {
+#   team = "data-engineering"
+#   cost_center = "analytics"
+# }

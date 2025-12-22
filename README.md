@@ -15,19 +15,19 @@ Production-ready GCP architecture patterns with Terraform and comprehensive obse
 Event-driven system using Pub/Sub + Cloud Run
 
 - Push-based message delivery, Dead Letter Queue, automatic retry
-- Details: [patterns/event-driven/gcp/](patterns/event-driven/gcp/)
+- Details: [patterns/event-driven/gcp/](architectures/event-driven/gcp/)
 
 ### 2. Microservices on GKE Autopilot
 Microservices architecture with GKE Autopilot + Ingress
 
 - Fully managed Kubernetes, Workload Identity, Managed SSL
-- Details: [patterns/microservices-gke/gcp/](patterns/microservices-gke/gcp/)
+- Details: [patterns/microservices-gke/gcp/](architectures/microservices-gke/gcp/)
 
 ### 3. Workflow Batch Pattern
 Batch processing with Cloud Scheduler + Workflows + Cloud Run Job
 
 - Scheduled execution, job orchestration, error handling
-- Details: [patterns/workflow-batch/gcp/](patterns/workflow-batch/gcp/)
+- Details: [patterns/workflow-batch/gcp/](architectures/workflow-batch/gcp/)
 
 ## Project Structure
 
@@ -51,7 +51,7 @@ tf-observable-architecture-patterns/
 
 ```bash
 # Choose a pattern (event-driven/microservices-gke/workflow-batch)
-cd patterns/event-driven/gcp/environments/dev
+cd architectures/event-driven/gcp/environments/dev
 
 # Prepare configuration
 cp terraform.tfvars.example terraform.tfvars

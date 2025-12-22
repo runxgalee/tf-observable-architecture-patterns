@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Script to validate all Terraform patterns
+# Script to validate all Terraform architectures
 # Usage: ./scripts/validate-all.sh
 
 set -e
@@ -26,8 +26,8 @@ PASSED_PATTERNS=0
 FAILED_PATTERNS=0
 WARNING_PATTERNS=0
 
-# Get all patterns
-PATTERNS=$(find patterns -maxdepth 1 -mindepth 1 -type d -exec basename {} \;)
+# Get all architectures
+PATTERNS=$(find architectures -maxdepth 1 -mindepth 1 -type d -exec basename {} \;)
 
 for pattern in $PATTERNS; do
     ((TOTAL_PATTERNS++))
