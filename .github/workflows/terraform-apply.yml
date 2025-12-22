@@ -97,7 +97,21 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
+      - name: Check GCP Credentials
+        id: check_creds
+        run: |
+          if [ -z "${{ secrets.WIF_PROVIDER }}" ] || [ -z "${{ secrets.WIF_SERVICE_ACCOUNT }}" ]; then
+            echo "⚠️  GCP credentials not configured"
+            echo "Please set WIF_PROVIDER and WIF_SERVICE_ACCOUNT secrets in repository settings"
+            echo "has_creds=false" >> $GITHUB_OUTPUT
+            exit 1
+          else
+            echo "✓ GCP credentials found"
+            echo "has_creds=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Authenticate to Google Cloud
+        if: steps.check_creds.outputs.has_creds == 'true'
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
