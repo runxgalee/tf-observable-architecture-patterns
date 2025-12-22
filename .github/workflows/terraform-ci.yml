@@ -24,7 +24,7 @@ jobs:
     name: Detect Changed Patterns
     runs-on: ubuntu-latest
     outputs:
-      patterns: ${{ steps.detect.outputs.architectures }}
+      architectures: ${{ steps.detect.outputs.architectures }}
       has_changes: ${{ steps.detect.outputs.has_changes }}
       all_patterns: ${{ steps.detect.outputs.all_patterns }}
     steps:
@@ -56,7 +56,7 @@ jobs:
             sort -u | \
             jq -R -s -c 'split("\n") | map(select(length > 0))')
 
-          echo "patterns=$PATTERNS" >> $GITHUB_OUTPUT
+          echo "architectures=$PATTERNS" >> $GITHUB_OUTPUT
 
           if [ "$PATTERNS" != "[]" ] && [ -n "$PATTERNS" ]; then
             echo "has_changes=true" >> $GITHUB_OUTPUT
@@ -73,7 +73,7 @@ jobs:
     if: needs.detect-changes.outputs.has_changes == 'true'
     strategy:
       matrix:
-        pattern: ${{ fromJson(needs.detect-changes.outputs.patterns) }}
+        pattern: ${{ fromJson(needs.detect-changes.outputs.architectures) }}
       fail-fast: false
 
     steps:
@@ -105,7 +105,7 @@ jobs:
     if: needs.detect-changes.outputs.has_changes == 'true'
     strategy:
       matrix:
-        pattern: ${{ fromJson(needs.detect-changes.outputs.patterns) }}
+        pattern: ${{ fromJson(needs.detect-changes.outputs.architectures) }}
         environment: [dev, prod]
       fail-fast: false
     defaults:
@@ -135,7 +135,7 @@ jobs:
     if: needs.detect-changes.outputs.has_changes == 'true'
     strategy:
       matrix:
-        pattern: ${{ fromJson(needs.detect-changes.outputs.patterns) }}
+        pattern: ${{ fromJson(needs.detect-changes.outputs.architectures) }}
       fail-fast: false
 
     steps:
@@ -179,7 +179,7 @@ jobs:
     if: needs.detect-changes.outputs.has_changes == 'true'
     strategy:
       matrix:
-        pattern: ${{ fromJson(needs.detect-changes.outputs.patterns) }}
+        pattern: ${{ fromJson(needs.detect-changes.outputs.architectures) }}
       fail-fast: false
 
     steps:
@@ -220,7 +220,7 @@ jobs:
     if: needs.detect-changes.outputs.has_changes == 'true'
     strategy:
       matrix:
-        pattern: ${{ fromJson(needs.detect-changes.outputs.patterns) }}
+        pattern: ${{ fromJson(needs.detect-changes.outputs.architectures) }}
       fail-fast: false
 
     steps:
@@ -242,7 +242,7 @@ jobs:
     if: needs.detect-changes.outputs.has_changes == 'true'
     strategy:
       matrix:
-        pattern: ${{ fromJson(needs.detect-changes.outputs.patterns) }}
+        pattern: ${{ fromJson(needs.detect-changes.outputs.architectures) }}
       fail-fast: false
 
     steps:
@@ -282,7 +282,7 @@ jobs:
         run: |
           echo "## Terraform CI Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Patterns tested:** ${{ needs.detect-changes.outputs.patterns }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Patterns tested:** ${{ needs.detect-changes.outputs.architectures }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
