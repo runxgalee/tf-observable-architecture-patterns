@@ -40,7 +40,7 @@ jobs:
           ALL_PATTERNS=$(find architectures -maxdepth 1 -mindepth 1 -type d -exec basename {} \; | jq -R -s -c 'split("\n") | map(select(length > 0))')
           echo "all_patterns=$ALL_PATTERNS" >> $GITHUB_OUTPUT
 
-          # Get changed patterns
+          # Get changed files
           if [ "${{ github.event_name }}" == "pull_request" ]; then
             CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
           else
@@ -50,20 +50,31 @@ jobs:
           echo "Changed files:"
           echo "$CHANGED_FILES"
 
-          PATTERNS=$(echo "$CHANGED_FILES" | \
-            grep '^architectures/' | \
-            cut -d'/' -f2 | \
-            sort -u | \
-            jq -R -s -c 'split("\n") | map(select(length > 0))')
+          # Check if workflow files were changed
+          WORKFLOW_CHANGED=$(echo "$CHANGED_FILES" | grep '^.github/workflows/' || true)
 
-          echo "architectures=$PATTERNS" >> $GITHUB_OUTPUT
-
-          if [ "$PATTERNS" != "[]" ] && [ -n "$PATTERNS" ]; then
+          if [ -n "$WORKFLOW_CHANGED" ]; then
+            echo "Workflow files changed - testing all architectures"
+            echo "architectures=$ALL_PATTERNS" >> $GITHUB_OUTPUT
             echo "has_changes=true" >> $GITHUB_OUTPUT
-            echo "Detected patterns: $PATTERNS"
+            echo "Detected patterns: $ALL_PATTERNS (all - workflow changed)"
           else
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-            echo "No pattern changes detected"
+            # Only check changed architectures
+            PATTERNS=$(echo "$CHANGED_FILES" | \
+              grep '^architectures/' | \
+              cut -d'/' -f2 | \
+              sort -u | \
+              jq -R -s -c 'split("\n") | map(select(length > 0))')
+
+            echo "architectures=$PATTERNS" >> $GITHUB_OUTPUT
+
+            if [ "$PATTERNS" != "[]" ] && [ -n "$PATTERNS" ]; then
+              echo "has_changes=true" >> $GITHUB_OUTPUT
+              echo "Detected patterns: $PATTERNS"
+            else
+              echo "has_changes=false" >> $GITHUB_OUTPUT
+              echo "No pattern changes detected"
+            fi
           fi
 
   terraform-format:
