@@ -91,7 +91,10 @@ jobs:
 
       - name: Terraform Init
         id: init
-        run: terraform init
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="prefix=terraform/${{ matrix.pattern }}/${{ matrix.environment }}"
 
       - name: Terraform Validate
         id: validate
@@ -100,7 +103,7 @@ jobs:
       - name: Terraform Plan
         id: plan
         run: |
-          terraform plan -no-color -out=tfplan
+          terraform plan -input=false -no-color -out=tfplan
         continue-on-error: true
 
       - name: Generate Plan Summary
