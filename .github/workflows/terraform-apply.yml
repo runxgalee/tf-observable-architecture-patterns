@@ -14,8 +14,6 @@ on:
         type: choice
         options:
           - event-driven
-          - microservices-gke
-          - workflow-batch
       environment:
         description: 'Environment to apply'
         required: true
@@ -47,7 +45,7 @@ jobs:
     strategy:
       matrix:
         pattern: ${{ fromJson(needs.get-patterns.outputs.all_patterns) }}
-        environment: [dev, prod]
+        environment: [dev]
       fail-fast: false
     defaults:
       run:
