@@ -1,12 +1,11 @@
 name: Terraform Apply on Main
 
 on:
-  workflow_run:
-    workflows: ["Terraform CI"]
-    types:
-      - completed
+  push:
     branches:
       - main
+    paths:
+      - 'architectures/**'
   workflow_dispatch:
     inputs:
       architecture:
@@ -14,10 +13,9 @@ on:
         required: true
         type: choice
         options:
+          - event-driven
           - microservices-gke
           - workflow-batch
-          - event-driven
-          - all
       environment:
         description: 'Environment to apply'
         required: true
@@ -36,99 +34,20 @@ env:
   TF_VERSION: '1.13.0'
 
 jobs:
-  detect-changes:
-    name: Detect Changed Patterns
-    runs-on: ubuntu-latest
-    # Only run if terraform-ci succeeded (for workflow_run) or always run (for workflow_dispatch)
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
-    outputs:
-      patterns: ${{ steps.detect.outputs.architectures }}
-      has_changes: ${{ steps.detect.outputs.has_changes }}
-      environments: ${{ steps.detect.outputs.environments }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && github.ref || github.event.workflow_run.head_sha }}
-          fetch-depth: 0
-
-      - name: Detect changed architectures
-        id: detect
-        run: |
-          # Handle manual workflow dispatch
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            ARCHITECTURE="${{ github.event.inputs.architecture }}"
-            ENVIRONMENT="${{ github.event.inputs.environment }}"
-
-            if [ "$ARCHITECTURE" = "all" ]; then
-              # Get all architectures
-              PATTERNS=$(find architectures -maxdepth 1 -mindepth 1 -type d -exec basename {} \; | jq -R -s -c 'split("\n") | map(select(length > 0))')
-            else
-              # Use selected architecture
-              PATTERNS=$(echo "$ARCHITECTURE" | jq -R -c '[.]')
-            fi
-
-            # Set environment
-            ENVIRONMENTS=$(echo "$ENVIRONMENT" | jq -R -c '[.]')
-
-            echo "architectures=$PATTERNS" >> $GITHUB_OUTPUT
-            echo "environments=$ENVIRONMENTS" >> $GITHUB_OUTPUT
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-            echo "Manual trigger - Architecture: $ARCHITECTURE, Environment: $ENVIRONMENT"
-            exit 0
-          fi
-
-          # Auto-detect for workflow_run trigger
-          # Get all architectures
-          ALL_PATTERNS=$(find architectures -maxdepth 1 -mindepth 1 -type d -exec basename {} \; | jq -R -s -c 'split("\n") | map(select(length > 0))')
-          echo "all_patterns=$ALL_PATTERNS" >> $GITHUB_OUTPUT
-
-          # Get changed files from the triggering commit
-          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
-
-          echo "Changed files:"
-          echo "$CHANGED_FILES"
-
-          # Check if workflow files were changed
-          WORKFLOW_CHANGED=$(echo "$CHANGED_FILES" | grep '^.github/workflows/' || true)
-
-          if [ -n "$WORKFLOW_CHANGED" ]; then
-            echo "Workflow files changed - applying to all architectures"
-            echo "architectures=$ALL_PATTERNS" >> $GITHUB_OUTPUT
-            echo "environments=[\"dev\"]" >> $GITHUB_OUTPUT
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-            echo "Detected patterns: $ALL_PATTERNS (all - workflow changed)"
-          else
-            # Only check changed architectures
-            PATTERNS=$(echo "$CHANGED_FILES" | \
-              grep '^architectures/' | \
-              cut -d'/' -f2 | \
-              sort -u | \
-              jq -R -s -c 'split("\n") | map(select(length > 0))')
-
-            echo "architectures=$PATTERNS" >> $GITHUB_OUTPUT
-            echo "environments=[\"dev\"]" >> $GITHUB_OUTPUT
-
-            if [ "$PATTERNS" != "[]" ] && [ -n "$PATTERNS" ]; then
-              echo "has_changes=true" >> $GITHUB_OUTPUT
-              echo "Detected patterns: $PATTERNS"
-            else
-              echo "has_changes=false" >> $GITHUB_OUTPUT
-              echo "No pattern changes detected"
-            fi
-          fi
+  get-patterns:
+    name: Get Architecture Patterns
+    uses: ./.github/workflows/_patterns-config.yml
 
   terraform-apply:
     name: Apply ${{ matrix.pattern }}/${{ matrix.environment }}
     runs-on: ubuntu-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.has_changes == 'true'
+    needs: get-patterns
     environment:
       name: ${{ matrix.environment }}
     strategy:
       matrix:
-        pattern: ${{ fromJson(needs.detect-changes.outputs.patterns) }}
-        environment: ${{ fromJson(needs.detect-changes.outputs.environments) }}
+        pattern: ${{ fromJson(needs.get-patterns.outputs.all_patterns) }}
+        environment: [dev, prod]
       fail-fast: false
     defaults:
       run:
@@ -137,8 +56,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -148,9 +65,9 @@ jobs:
       - name: Check GCP Credentials
         id: check_creds
         run: |
-          if [ -z "${{ secrets.WIF_PROVIDER }}" ] || [ -z "${{ secrets.WIF_SERVICE_ACCOUNT }}" ]; then
+          if [ -z "${{ secrets.WIF_PROVIDER }}" ] || [ -z "${{ secrets.WIF_SERVICE_ACCOUNT }}" ] || [ -z "${{ secrets.GCP_PROJECT_ID }}" ]; then
             echo "⚠️  GCP credentials not configured"
-            echo "Please set WIF_PROVIDER and WIF_SERVICE_ACCOUNT secrets in repository settings"
+            echo "Please set WIF_PROVIDER, WIF_SERVICE_ACCOUNT, and GCP_PROJECT_ID secrets in repository settings"
             echo "has_creds=false" >> $GITHUB_OUTPUT
             exit 1
           else
@@ -165,6 +82,14 @@ jobs:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
 
+      - name: Get secrets from Secret Manager
+        if: steps.check_creds.outputs.has_creds == 'true'
+        id: secrets
+        uses: google-github-actions/get-secretmanager-secrets@v3
+        with:
+          secrets: |-
+            tf_state_bucket:projects/${{ secrets.GCP_PROJECT_ID }}/secrets/github-actions-${{ matrix.environment }}-tf-state-bucket
+
       - name: Terraform Format Check
         id: fmt
         run: terraform fmt -check -recursive
@@ -173,7 +98,7 @@ jobs:
       - name: Terraform Init
         run: |
           terraform init \
-            -backend-config="bucket=${{ secrets.TF_STATE_BUCKET }}" \
+            -backend-config="bucket=${{ steps.secrets.outputs.tf_state_bucket }}" \
             -backend-config="prefix=terraform/${{ matrix.pattern }}/${{ matrix.environment }}"
 
       - name: Terraform Validate
@@ -220,12 +145,15 @@ jobs:
   summary:
     name: Deployment Summary
     runs-on: ubuntu-latest
-    needs: [detect-changes, terraform-apply]
+    needs:
+      - get-patterns
+      - terraform-apply
     if: always()
     steps:
       - name: Summary
         run: |
           echo "## Terraform Apply Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Patterns processed:** ${{ needs.detect-changes.outputs.patterns }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Patterns processed:** ${{ needs.get-patterns.outputs.all_patterns_list }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Environments:** dev, prod" >> $GITHUB_STEP_SUMMARY
           echo "**Status:** ${{ needs.terraform-apply.result }}" >> $GITHUB_STEP_SUMMARY

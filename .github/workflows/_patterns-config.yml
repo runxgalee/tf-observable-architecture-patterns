@@ -1,0 +1,51 @@
+name: Architecture Patterns Configuration (Reusable)
+
+# This reusable workflow provides centralized configuration for architecture patterns.
+# All other workflows call this to get the list of patterns.
+
+on:
+  workflow_call:
+    outputs:
+      all_patterns:
+        description: "All architecture patterns as JSON array"
+        value: ${{ jobs.config.outputs.all_patterns }}
+      all_patterns_list:
+        description: "All architecture patterns as comma-separated list"
+        value: ${{ jobs.config.outputs.all_patterns_list }}
+      prod_patterns:
+        description: "Production-enabled patterns as JSON array"
+        value: ${{ jobs.config.outputs.prod_patterns }}
+
+jobs:
+  config:
+    name: Get Architecture Patterns
+    runs-on: ubuntu-latest
+    outputs:
+      all_patterns: ${{ steps.patterns.outputs.all_patterns }}
+      all_patterns_list: ${{ steps.patterns.outputs.all_patterns_list }}
+      prod_patterns: ${{ steps.patterns.outputs.prod_patterns }}
+    steps:
+      - name: Define Architecture Patterns
+        id: patterns
+        run: |
+          # Define all architecture patterns here (SINGLE SOURCE OF TRUTH)
+          ALL_PATTERNS='["event-driven"]'
+
+          # Define patterns enabled for production deployments
+          # (subset of all patterns - used by terraform-apply-with-approval.yml)
+          PROD_PATTERNS='[]'
+
+          # Export as JSON array
+          echo "all_patterns=$ALL_PATTERNS" >> $GITHUB_OUTPUT
+
+          # Export as comma-separated list for display
+          PATTERNS_LIST=$(echo $ALL_PATTERNS | jq -r '.[]' | paste -sd ',' -)
+          echo "all_patterns_list=$PATTERNS_LIST" >> $GITHUB_OUTPUT
+
+          # Export prod patterns
+          echo "prod_patterns=$PROD_PATTERNS" >> $GITHUB_OUTPUT
+
+          # Log for debugging
+          echo "All Patterns: $ALL_PATTERNS"
+          echo "Patterns List: $PATTERNS_LIST"
+          echo "Prod Patterns: $PROD_PATTERNS"

@@ -20,71 +20,17 @@ env:
   TF_VERSION: '1.13.0'
 
 jobs:
-  detect-changes:
-    name: Detect Changed Patterns
-    runs-on: ubuntu-latest
-    outputs:
-      architectures: ${{ steps.detect.outputs.architectures }}
-      has_changes: ${{ steps.detect.outputs.has_changes }}
-      all_patterns: ${{ steps.detect.outputs.all_patterns }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Detect changed architectures
-        id: detect
-        run: |
-          # Get all patterns
-          ALL_PATTERNS=$(find architectures -maxdepth 1 -mindepth 1 -type d -exec basename {} \; | jq -R -s -c 'split("\n") | map(select(length > 0))')
-          echo "all_patterns=$ALL_PATTERNS" >> $GITHUB_OUTPUT
-
-          # Get changed files
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
-          else
-            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
-          fi
-
-          echo "Changed files:"
-          echo "$CHANGED_FILES"
-
-          # Check if workflow files were changed
-          WORKFLOW_CHANGED=$(echo "$CHANGED_FILES" | grep '^.github/workflows/' || true)
-
-          if [ -n "$WORKFLOW_CHANGED" ]; then
-            echo "Workflow files changed - testing all architectures"
-            echo "architectures=$ALL_PATTERNS" >> $GITHUB_OUTPUT
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-            echo "Detected patterns: $ALL_PATTERNS (all - workflow changed)"
-          else
-            # Only check changed architectures
-            PATTERNS=$(echo "$CHANGED_FILES" | \
-              grep '^architectures/' | \
-              cut -d'/' -f2 | \
-              sort -u | \
-              jq -R -s -c 'split("\n") | map(select(length > 0))')
-
-            echo "architectures=$PATTERNS" >> $GITHUB_OUTPUT
-
-            if [ "$PATTERNS" != "[]" ] && [ -n "$PATTERNS" ]; then
-              echo "has_changes=true" >> $GITHUB_OUTPUT
-              echo "Detected patterns: $PATTERNS"
-            else
-              echo "has_changes=false" >> $GITHUB_OUTPUT
-              echo "No pattern changes detected"
-            fi
-          fi
+  get-patterns:
+    name: Get Architecture Patterns
+    uses: ./.github/workflows/_patterns-config.yml
 
   terraform-format:
     name: Format Check - ${{ matrix.pattern }}
     runs-on: ubuntu-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.has_changes == 'true'
+    needs: get-patterns
     strategy:
       matrix:
-        pattern: ${{ fromJson(needs.detect-changes.outputs.architectures) }}
+        pattern: ${{ fromJson(needs.get-patterns.outputs.all_patterns) }}
       fail-fast: false
 
     steps:
@@ -112,11 +58,10 @@ jobs:
   terraform-validate:
     name: Validate - ${{ matrix.pattern }}/${{ matrix.environment }}
     runs-on: ubuntu-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.has_changes == 'true'
+    needs: get-patterns
     strategy:
       matrix:
-        pattern: ${{ fromJson(needs.detect-changes.outputs.architectures) }}
+        pattern: ${{ fromJson(needs.get-patterns.outputs.all_patterns) }}
         environment: [dev, prod]
       fail-fast: false
     defaults:
@@ -142,11 +87,10 @@ jobs:
   tflint:
     name: TFLint - ${{ matrix.pattern }}
     runs-on: ubuntu-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.has_changes == 'true'
+    needs: get-patterns
     strategy:
       matrix:
-        pattern: ${{ fromJson(needs.detect-changes.outputs.architectures) }}
+        pattern: ${{ fromJson(needs.get-patterns.outputs.all_patterns) }}
       fail-fast: false
 
     steps:
@@ -186,11 +130,10 @@ jobs:
   terraform-docs:
     name: Docs Check - ${{ matrix.pattern }}
     runs-on: ubuntu-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.has_changes == 'true'
+    needs: get-patterns
     strategy:
       matrix:
-        pattern: ${{ fromJson(needs.detect-changes.outputs.architectures) }}
+        pattern: ${{ fromJson(needs.get-patterns.outputs.all_patterns) }}
       fail-fast: false
 
     steps:
@@ -227,11 +170,10 @@ jobs:
   security-scan:
     name: Security Scan - ${{ matrix.pattern }}
     runs-on: ubuntu-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.has_changes == 'true'
+    needs: get-patterns
     strategy:
       matrix:
-        pattern: ${{ fromJson(needs.detect-changes.outputs.architectures) }}
+        pattern: ${{ fromJson(needs.get-patterns.outputs.all_patterns) }}
       fail-fast: false
 
     steps:
@@ -249,11 +191,10 @@ jobs:
   test-terraform-syntax:
     name: Syntax Test - ${{ matrix.pattern }}
     runs-on: ubuntu-latest
-    needs: detect-changes
-    if: needs.detect-changes.outputs.has_changes == 'true'
+    needs: get-patterns
     strategy:
       matrix:
-        pattern: ${{ fromJson(needs.detect-changes.outputs.architectures) }}
+        pattern: ${{ fromJson(needs.get-patterns.outputs.all_patterns) }}
       fail-fast: false
 
     steps:
@@ -280,7 +221,7 @@ jobs:
     name: CI Summary
     runs-on: ubuntu-latest
     needs:
-      - detect-changes
+      - get-patterns
       - terraform-format
       - terraform-validate
       - tflint
@@ -293,7 +234,7 @@ jobs:
         run: |
           echo "## Terraform CI Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Patterns tested:** ${{ needs.detect-changes.outputs.architectures }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Patterns tested:** ${{ needs.get-patterns.outputs.all_patterns_list }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
