@@ -84,7 +84,7 @@ jobs:
         uses: google-github-actions/get-secretmanager-secrets@v3
         with:
           secrets: |-
-            tf_state_bucket:projects/${{ secrets.GCP_PROJECT_ID }}/secrets/github-actions-${{ matrix.environment }}-tf-state-bucket
+            tf_state_bucket:projects/${{ secrets.GCP_PROJECT_ID }}/secrets/${{ matrix.environment }}-tf-state-bucket
 
       - name: Terraform Format Check
         id: fmt
