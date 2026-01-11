@@ -1,0 +1,16 @@
+# GCP Project Configuration
+project_id = "your-gcp-project-id"
+
+# Bucket Configuration
+# Must be globally unique across all GCP projects
+bucket_name = "your-project-terraform-state"
+
+# Optional: Override defaults
+# location            = "asia-northeast1"
+# storage_class       = "STANDARD"
+# versioning_enabled  = true
+# lifecycle_age_days  = 30
+
+# Optional: Grant access to GitHub Actions service account
+# Get this from: cd ../github-actions-auth && terraform output service_account_email
+# github_actions_service_account = "github-actions-terraform@your-project.iam.gserviceaccount.com"
