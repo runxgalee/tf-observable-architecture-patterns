@@ -95,7 +95,7 @@ jobs:
         run: |
           terraform init \
             -backend-config="bucket=${{ steps.secrets.outputs.tf_state_bucket }}" \
-            -backend-config="prefix=terraform/${{ matrix.pattern }}/${{ matrix.environment }}"
+            -backend-config="prefix=terraform/${{ matrix.pattern }}/gcp/${{ matrix.environment }}"
 
       - name: Terraform Validate
         id: validate

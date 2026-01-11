@@ -15,7 +15,7 @@ output "workload_identity_pool_id" {
 
 output "setup_instructions" {
   description = "Instructions for setting up GitHub secrets"
-  value = <<-EOT
+  value       = <<-EOT
 
     ========================================
     GitHub Secrets Setup Instructions

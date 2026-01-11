@@ -56,17 +56,16 @@ jobs:
           echo "Run 'terraform fmt -recursive' to fix formatting issues"
 
   terraform-validate:
-    name: Validate - ${{ matrix.pattern }}/${{ matrix.environment }}
+    name: Validate - ${{ matrix.pattern }}
     runs-on: ubuntu-latest
     needs: get-patterns
     strategy:
       matrix:
         pattern: ${{ fromJson(needs.get-patterns.outputs.all_patterns) }}
-        environment: [dev, prod]
       fail-fast: false
     defaults:
       run:
-        working-directory: architectures/${{ matrix.pattern }}/gcp/environments/${{ matrix.environment }}
+        working-directory: architectures/${{ matrix.pattern }}/gcp
 
     steps:
       - name: Checkout
@@ -100,7 +99,7 @@ jobs:
       - name: Setup TFLint
         uses: terraform-linters/setup-tflint@v4
         with:
-          tflint_version: latest
+          tflint_version: v0.54.0
 
       - name: Init TFLint
         run: |
@@ -108,24 +107,33 @@ jobs:
           tflint --init
 
       - name: Run TFLint on modules
+        id: tflint-modules
+        continue-on-error: true
         run: |
           cd architectures/${{ matrix.pattern }}/gcp/modules
+          ERROR_COUNT=0
           for module in */; do
             echo "Linting module: ${module}"
             cd "$module"
-            tflint --format compact || true
+            if ! tflint --format compact; then
+              ERROR_COUNT=$((ERROR_COUNT + 1))
+            fi
             cd ..
           done
+          if [ $ERROR_COUNT -gt 0 ]; then
+            echo "::warning::TFLint found issues in $ERROR_COUNT module(s)"
+            exit 1
+          fi
 
-      - name: Run TFLint on environments
+      - name: Run TFLint on root
+        id: tflint-root
+        continue-on-error: true
         run: |
-          cd architectures/${{ matrix.pattern }}/gcp/environments
-          for env in */; do
-            echo "Linting environment: ${env}"
-            cd "$env"
-            tflint --format compact || true
-            cd ..
-          done
+          cd architectures/${{ matrix.pattern }}/gcp
+          if ! tflint --format compact; then
+            echo "::warning::TFLint found issues in root configuration"
+            exit 1
+          fi
 
   terraform-docs:
     name: Docs Check - ${{ matrix.pattern }}
@@ -182,14 +190,16 @@ jobs:
 
       - name: Run Trivy security scanner
         uses: aquasecurity/trivy-action@0.29.0
+        continue-on-error: true
         with:
           scan-type: 'config'
           scan-ref: 'architectures/${{ matrix.pattern }}/gcp'
           format: 'table'
-          exit-code: '0'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
 
-  test-terraform-syntax:
-    name: Syntax Test - ${{ matrix.pattern }}
+  terraform-test:
+    name: Terraform Test - ${{ matrix.pattern }}
     runs-on: ubuntu-latest
     needs: get-patterns
     strategy:
@@ -206,16 +216,29 @@ jobs:
         with:
           terraform_version: ${{ env.TF_VERSION }}
 
-      - name: Test module syntax
+      - name: Check for test files
+        id: check-tests
         run: |
-          cd architectures/${{ matrix.pattern }}/gcp/modules
-          for module in */; do
-            echo "Testing syntax for module: ${module}"
-            cd "$module"
-            terraform init -backend=false
-            terraform validate
-            cd ..
-          done
+          TEST_DIR="architectures/${{ matrix.pattern }}/gcp/tests/unit"
+          if [ -d "$TEST_DIR" ] && [ "$(ls -A $TEST_DIR/*.tftest.hcl 2>/dev/null)" ]; then
+            echo "has_tests=true" >> $GITHUB_OUTPUT
+            echo "Found test files in $TEST_DIR"
+          else
+            echo "has_tests=false" >> $GITHUB_OUTPUT
+            echo "No test files found in $TEST_DIR"
+          fi
+
+      - name: Terraform Init
+        if: steps.check-tests.outputs.has_tests == 'true'
+        run: |
+          cd architectures/${{ matrix.pattern }}/gcp
+          terraform init -backend=false
+
+      - name: Run Terraform Tests
+        if: steps.check-tests.outputs.has_tests == 'true'
+        run: |
+          cd architectures/${{ matrix.pattern }}/gcp
+          terraform test -test-directory=tests/unit
 
   ci-summary:
     name: CI Summary
@@ -227,7 +250,7 @@ jobs:
       - tflint
       - terraform-docs
       - security-scan
-      - test-terraform-syntax
+      - terraform-test
     if: always()
     steps:
       - name: Check results
@@ -243,15 +266,19 @@ jobs:
           echo "| TFLint | ${{ needs.tflint.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Documentation | ${{ needs.terraform-docs.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Security Scan | ${{ needs.security-scan.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Syntax Test | ${{ needs.test-terraform-syntax.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Terraform Test | ${{ needs.terraform-test.result }} |" >> $GITHUB_STEP_SUMMARY
 
           # Fail if any required check failed
           if [ "${{ needs.terraform-format.result }}" == "failure" ] || \
              [ "${{ needs.terraform-validate.result }}" == "failure" ] || \
-             [ "${{ needs.test-terraform-syntax.result }}" == "failure" ]; then
+             [ "${{ needs.terraform-test.result }}" == "failure" ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "❌ **CI checks failed**" >> $GITHUB_STEP_SUMMARY
             exit 1
+          elif [ "${{ needs.tflint.result }}" == "failure" ] || \
+               [ "${{ needs.security-scan.result }}" == "failure" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **CI checks passed with warnings (TFLint or Security Scan issues)**" >> $GITHUB_STEP_SUMMARY
           else
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "✅ **All CI checks passed**" >> $GITHUB_STEP_SUMMARY
