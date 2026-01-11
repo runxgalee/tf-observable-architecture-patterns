@@ -1,228 +1,164 @@
 #!/bin/bash
+set -e
 
-# Script to validate a Terraform pattern
 # Usage: ./scripts/validate-pattern.sh <pattern-name>
 # Example: ./scripts/validate-pattern.sh event-driven
 
-set -e
+PATTERN=$1
+REPO_ROOT=$(git rev-parse --show-toplevel)
+PATTERN_DIR="${REPO_ROOT}/architectures/${PATTERN}/gcp"
 
-PATTERN=${1:-}
-
-if [ -z "$PATTERN" ]; then
-    echo "Error: Pattern name is required"
-    echo "Usage: $0 <pattern-name>"
-    echo ""
-    echo "Available patterns:"
-    ls -1 architectures/
-    exit 1
-fi
-
-PATTERN_PATH="architectures/$PATTERN/gcp"
-
-if [ ! -d "$PATTERN_PATH" ]; then
-    echo "Error: Pattern '$PATTERN' not found at $PATTERN_PATH"
-    exit 1
-fi
-
-echo "========================================="
-echo "Validating Pattern: $PATTERN"
-echo "========================================="
-echo ""
-
-# Colors for output
-GREEN='\033[0;32m'
+# Color codes for output
 RED='\033[0;31m'
+GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-ERRORS=0
-WARNINGS=0
-
-# Function to print success
-success() {
-    echo -e "${GREEN}✓${NC} $1"
-}
-
-# Function to print error
-error() {
-    echo -e "${RED}✗${NC} $1"
-    ((ERRORS++))
-}
-
-# Function to print warning
-warning() {
-    echo -e "${YELLOW}⚠${NC} $1"
-    ((WARNINGS++))
-}
-
-echo "1. Checking directory structure..."
-echo "-----------------------------------"
-
-# Check for modules directory
-if [ -d "$PATTERN_PATH/modules" ]; then
-    success "modules/ directory exists"
-else
-    error "modules/ directory not found"
-fi
-
-# Check for environments directory
-if [ -d "$PATTERN_PATH/environments" ]; then
-    success "environments/ directory exists"
-else
-    error "environments/ directory not found"
-fi
-
-# Check for dev and prod environments
-for env in dev prod; do
-    if [ -d "$PATTERN_PATH/environments/$env" ]; then
-        success "environments/$env exists"
-    else
-        error "environments/$env not found"
+if [ -z "$PATTERN" ]; then
+  echo -e "${RED}Error: Pattern name is required${NC}"
+  echo "Usage: $0 <pattern-name>"
+  echo "Available patterns:"
+  for dir in "${REPO_ROOT}/architectures/"*/gcp; do
+    if [ -d "$dir" ]; then
+      pattern_name=$(basename "$(dirname "$dir")")
+      echo "  - $pattern_name"
     fi
-done
-
-echo ""
-echo "2. Checking required files..."
-echo "-----------------------------------"
-
-# Check for README
-if [ -f "$PATTERN_PATH/README.md" ]; then
-    success "README.md exists"
-else
-    warning "README.md not found"
+  done
+  exit 1
 fi
 
-# Check module files
-MODULE_DIRS=$(find "$PATTERN_PATH/modules" -mindepth 1 -maxdepth 1 -type d 2>/dev/null || echo "")
-if [ -n "$MODULE_DIRS" ]; then
-    for module in $MODULE_DIRS; do
-        module_name=$(basename "$module")
-        echo ""
-        echo "Checking module: $module_name"
-
-        for file in versions.tf main.tf variables.tf outputs.tf; do
-            if [ -f "$module/$file" ]; then
-                success "$module_name/$file exists"
-            else
-                if [ "$file" == "versions.tf" ] || [ "$file" == "main.tf" ]; then
-                    error "$module_name/$file not found (required)"
-                else
-                    warning "$module_name/$file not found (recommended)"
-                fi
-            fi
-        done
-    done
-fi
-
-# Check environment files
-for env in dev prod; do
-    ENV_PATH="$PATTERN_PATH/environments/$env"
-    if [ -d "$ENV_PATH" ]; then
-        echo ""
-        echo "Checking environment: $env"
-
-        for file in providers.tf backend.tf main.tf variables.tf outputs.tf; do
-            if [ -f "$ENV_PATH/$file" ]; then
-                success "$env/$file exists"
-            else
-                if [ "$file" == "main.tf" ] || [ "$file" == "providers.tf" ]; then
-                    error "$env/$file not found (required)"
-                else
-                    warning "$env/$file not found (recommended)"
-                fi
-            fi
-        done
+if [ ! -d "$PATTERN_DIR" ]; then
+  echo -e "${RED}Error: Pattern directory not found: ${PATTERN_DIR}${NC}"
+  echo "Available patterns:"
+  for dir in "${REPO_ROOT}/architectures/"*/gcp; do
+    if [ -d "$dir" ]; then
+      pattern_name=$(basename "$(dirname "$dir")")
+      echo "  - $pattern_name"
     fi
-done
+  done
+  exit 1
+fi
 
-echo ""
-echo "3. Running terraform fmt..."
-echo "-----------------------------------"
-cd "$PATTERN_PATH"
+echo -e "${GREEN}=== Validating pattern: ${PATTERN} ===${NC}"
+echo -e "Pattern directory: ${PATTERN_DIR}\n"
+
+# Step 1: Terraform Format Check
+echo -e "${YELLOW}[1/4] Running terraform fmt...${NC}"
+cd "$PATTERN_DIR"
 if terraform fmt -check -recursive; then
-    success "All files are properly formatted"
+  echo -e "${GREEN}✓ Format check passed${NC}\n"
 else
-    error "Format check failed. Run 'terraform fmt -recursive' to fix"
+  echo -e "${RED}✗ Format check failed. Run 'terraform fmt -recursive' to fix${NC}\n"
+  exit 1
 fi
 
-echo ""
-echo "4. Validating Terraform syntax..."
-echo "-----------------------------------"
+# Step 2: Terraform Validate
+echo -e "${YELLOW}[2/4] Running terraform validate...${NC}"
+for env_dir in "${PATTERN_DIR}"/environments/*/; do
+  if [ -d "$env_dir" ]; then
+    env_name=$(basename "$env_dir")
+    echo "  Validating environment: $env_name"
+    cd "$env_dir"
 
-# Validate modules
-if [ -d "modules" ]; then
-    for module in modules/*/; do
-        if [ -d "$module" ]; then
-            module_name=$(basename "$module")
-            echo "Validating module: $module_name"
-            cd "$module"
-            if terraform init -backend=false > /dev/null 2>&1; then
-                if terraform validate > /dev/null 2>&1; then
-                    success "Module $module_name is valid"
-                else
-                    error "Module $module_name validation failed"
-                    terraform validate
-                fi
-            else
-                error "Module $module_name init failed"
-            fi
-            cd - > /dev/null
-        fi
-    done
-fi
+    # Initialize without backend for validation
+    terraform init -backend=false > /dev/null 2>&1
 
-# Validate environments
-for env in dev prod; do
-    ENV_PATH="environments/$env"
-    if [ -d "$ENV_PATH" ]; then
-        echo "Validating environment: $env"
-        cd "$ENV_PATH"
-        if terraform init -backend=false > /dev/null 2>&1; then
-            if terraform validate > /dev/null 2>&1; then
-                success "Environment $env is valid"
-            else
-                error "Environment $env validation failed"
-                terraform validate
-            fi
-        else
-            error "Environment $env init failed"
-        fi
-        cd - > /dev/null
+    if terraform validate; then
+      echo -e "${GREEN}  ✓ Validation passed for $env_name${NC}"
+    else
+      echo -e "${RED}  ✗ Validation failed for $env_name${NC}"
+      exit 1
     fi
+  fi
 done
 
-echo ""
-echo "5. Running TFLint..."
-echo "-----------------------------------"
+# If no environments directory exists, validate from root
+if [ ! -d "${PATTERN_DIR}/environments" ]; then
+  echo "  No environments directory found, validating from pattern root"
+  cd "$PATTERN_DIR"
+  terraform init -backend=false > /dev/null 2>&1
 
-if command -v tflint >/dev/null 2>&1; then
-    cd "$PATTERN_PATH"
-    if tflint --init > /dev/null 2>&1; then
-        if tflint --format compact; then
-            success "TFLint passed"
-        else
-            warning "TFLint found issues"
-        fi
-    else
-        warning "TFLint init failed"
-    fi
-else
-    warning "TFLint not installed, skipping"
-fi
-
-echo ""
-echo "========================================="
-echo "Validation Summary"
-echo "========================================="
-echo ""
-
-if [ $ERRORS -eq 0 ] && [ $WARNINGS -eq 0 ]; then
-    echo -e "${GREEN}✓ All checks passed!${NC}"
-    exit 0
-elif [ $ERRORS -eq 0 ]; then
-    echo -e "${YELLOW}⚠ Validation completed with $WARNINGS warning(s)${NC}"
-    exit 0
-else
-    echo -e "${RED}✗ Validation failed with $ERRORS error(s) and $WARNINGS warning(s)${NC}"
+  if terraform validate; then
+    echo -e "${GREEN}  ✓ Validation passed${NC}"
+  else
+    echo -e "${RED}  ✗ Validation failed${NC}"
     exit 1
+  fi
 fi
+
+echo ""
+
+# Step 3: TFLint
+echo -e "${YELLOW}[3/4] Running tflint...${NC}"
+cd "$PATTERN_DIR"
+
+# Check if tflint is installed
+if ! command -v tflint &> /dev/null; then
+  echo -e "${YELLOW}  ⊘ TFLint not found, skipping (install: https://github.com/terraform-linters/tflint)${NC}"
+else
+  # Initialize tflint if needed
+  if [ ! -d .tflint.d ]; then
+    echo "  Initializing tflint..."
+    if ! tflint --init > /dev/null 2>&1; then
+      echo -e "${YELLOW}  ⊘ TFLint initialization failed, skipping${NC}"
+    fi
+  fi
+
+  # Run tflint on modules
+  if [ -d modules ]; then
+    echo "  Linting modules..."
+    for module_dir in modules/*/; do
+      if [ -d "$module_dir" ]; then
+        module_name=$(basename "$module_dir")
+        cd "$module_dir"
+        if tflint --format compact; then
+          echo -e "${GREEN}  ✓ TFLint passed for module: $module_name${NC}"
+        else
+          echo -e "${RED}  ✗ TFLint failed for module: $module_name${NC}"
+          exit 1
+        fi
+        cd "$PATTERN_DIR"
+      fi
+    done
+  fi
+
+  # Run tflint on root configuration
+  echo "  Linting root configuration..."
+  if tflint --format compact; then
+    echo -e "${GREEN}  ✓ TFLint passed for root configuration${NC}"
+  else
+    echo -e "${RED}  ✗ TFLint failed for root configuration${NC}"
+    exit 1
+  fi
+fi
+
+echo ""
+
+# Step 4: Terraform Test (if test files exist)
+echo -e "${YELLOW}[4/4] Running terraform test...${NC}"
+cd "$PATTERN_DIR"
+
+# Check for test files in multiple locations
+test_files_found=false
+if find . -name "*.tftest.hcl" -type f | grep -q .; then
+  test_files_found=true
+  test_count=$(find . -name "*.tftest.hcl" -type f | wc -l | tr -d ' ')
+  echo "  Found $test_count test file(s)"
+
+  # Initialize for testing
+  terraform init -backend=false > /dev/null 2>&1
+
+  if terraform test; then
+    echo -e "${GREEN}  ✓ Tests passed${NC}"
+  else
+    echo -e "${RED}  ✗ Tests failed${NC}"
+    exit 1
+  fi
+fi
+
+if [ "$test_files_found" = false ]; then
+  echo -e "${YELLOW}  ⊘ No test files found (*.tftest.hcl)${NC}"
+fi
+
+echo ""
+echo -e "${GREEN}=== All validations passed for pattern: ${PATTERN} ===${NC}"
