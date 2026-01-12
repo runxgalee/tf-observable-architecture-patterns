@@ -1,9 +1,12 @@
 # Variables Validation Tests
-# Tests that variable validation rules work correctly
+# Tests variable validation rules for all variables with validation blocks
 
+# -----------------------------------------------------------------------------
+# Common Test Configuration
+# -----------------------------------------------------------------------------
 mock_provider "google" {
   override_data {
-    target = data.google_project.project
+    target = module.iam_bindings.data.google_project.project
     values = {
       project_id = "test-project"
       number     = "123456789012"
@@ -11,469 +14,407 @@ mock_provider "google" {
   }
 }
 
-# Common variables for all tests
 variables {
   project_id      = "test-project"
   region          = "asia-northeast1"
+  project_name    = "events"
   container_image = "gcr.io/test/image:latest"
 }
+# -----------------------------------------------------------------------------
 
 # =============================================================================
-# Environment Variable Tests
+# environment: must be one of dev, staging, prod
 # =============================================================================
 
-run "valid_environment_dev" {
+run "environment_valid_dev" {
   command = plan
-
-  variables {
-    environment = "dev"
-  }
+  variables { environment = "dev" }
 }
 
-run "valid_environment_staging" {
+run "environment_valid_staging" {
   command = plan
-
-  variables {
-    environment = "staging"
-  }
+  variables { environment = "staging" }
 }
 
-run "valid_environment_prod" {
+run "environment_valid_prod" {
   command = plan
-
-  variables {
-    environment = "prod"
-  }
+  variables { environment = "prod" }
 }
 
-run "invalid_environment_test" {
+run "environment_invalid_test" {
   command = plan
-
-  variables {
-    environment = "test"
-  }
-
+  variables { environment = "test" }
   expect_failures = [var.environment]
 }
 
-run "invalid_environment_production" {
+run "environment_invalid_production" {
   command = plan
-
-  variables {
-    environment = "production"
-  }
-
+  variables { environment = "production" }
   expect_failures = [var.environment]
 }
 
 # =============================================================================
-# ack_deadline_seconds Tests (10-600)
+# ack_deadline_seconds: 10-600
 # =============================================================================
 
-run "valid_ack_deadline_minimum" {
+run "ack_deadline_valid_min" {
   command = plan
-
   variables {
     environment          = "dev"
     ack_deadline_seconds = 10
   }
 }
 
-run "valid_ack_deadline_maximum" {
+run "ack_deadline_valid_max" {
   command = plan
-
   variables {
     environment          = "dev"
     ack_deadline_seconds = 600
   }
 }
 
-run "invalid_ack_deadline_below_minimum" {
+run "ack_deadline_invalid_below_min" {
   command = plan
-
   variables {
     environment          = "dev"
     ack_deadline_seconds = 9
   }
-
   expect_failures = [var.ack_deadline_seconds]
 }
 
-run "invalid_ack_deadline_above_maximum" {
+run "ack_deadline_invalid_above_max" {
   command = plan
-
   variables {
     environment          = "dev"
     ack_deadline_seconds = 601
   }
-
   expect_failures = [var.ack_deadline_seconds]
 }
 
 # =============================================================================
-# max_delivery_attempts Tests (5-100)
+# max_delivery_attempts: 5-100
 # =============================================================================
 
-run "valid_max_delivery_attempts_minimum" {
+run "max_delivery_attempts_valid_min" {
   command = plan
-
   variables {
     environment           = "dev"
     max_delivery_attempts = 5
   }
 }
 
-run "valid_max_delivery_attempts_maximum" {
+run "max_delivery_attempts_valid_max" {
   command = plan
-
   variables {
     environment           = "dev"
     max_delivery_attempts = 100
   }
 }
 
-run "invalid_max_delivery_attempts_below_minimum" {
+run "max_delivery_attempts_invalid_below_min" {
   command = plan
-
   variables {
     environment           = "dev"
     max_delivery_attempts = 4
   }
-
   expect_failures = [var.max_delivery_attempts]
 }
 
-run "invalid_max_delivery_attempts_above_maximum" {
+run "max_delivery_attempts_invalid_above_max" {
   command = plan
-
   variables {
     environment           = "dev"
     max_delivery_attempts = 101
   }
-
   expect_failures = [var.max_delivery_attempts]
 }
 
 # =============================================================================
-# min_instances Tests (0-1000)
+# min_instances: 0-1000
 # =============================================================================
 
-run "valid_min_instances_zero" {
+run "min_instances_valid_zero" {
   command = plan
-
   variables {
     environment   = "dev"
     min_instances = 0
   }
 }
 
-run "valid_min_instances_maximum" {
+run "min_instances_valid_max" {
   command = plan
-
   variables {
     environment   = "dev"
     min_instances = 1000
   }
 }
 
-run "invalid_min_instances_negative" {
+run "min_instances_invalid_negative" {
   command = plan
-
   variables {
     environment   = "dev"
     min_instances = -1
   }
-
   expect_failures = [var.min_instances]
 }
 
-run "invalid_min_instances_above_maximum" {
+run "min_instances_invalid_above_max" {
   command = plan
-
   variables {
     environment   = "dev"
     min_instances = 1001
   }
-
   expect_failures = [var.min_instances]
 }
 
 # =============================================================================
-# max_instances Tests (1-1000)
+# max_instances: 1-1000
 # =============================================================================
 
-run "valid_max_instances_minimum" {
+run "max_instances_valid_min" {
   command = plan
-
   variables {
     environment   = "dev"
     max_instances = 1
   }
 }
 
-run "valid_max_instances_maximum" {
+run "max_instances_valid_max" {
   command = plan
-
   variables {
     environment   = "dev"
     max_instances = 1000
   }
 }
 
-run "invalid_max_instances_zero" {
+run "max_instances_invalid_zero" {
   command = plan
-
   variables {
     environment   = "dev"
     max_instances = 0
   }
-
   expect_failures = [var.max_instances]
 }
 
-run "invalid_max_instances_above_maximum" {
+run "max_instances_invalid_above_max" {
   command = plan
-
   variables {
     environment   = "dev"
     max_instances = 1001
   }
-
   expect_failures = [var.max_instances]
 }
 
 # =============================================================================
-# concurrency Tests (1-1000)
+# concurrency: 1-1000
 # =============================================================================
 
-run "valid_concurrency_minimum" {
+run "concurrency_valid_min" {
   command = plan
-
   variables {
     environment = "dev"
     concurrency = 1
   }
 }
 
-run "valid_concurrency_maximum" {
+run "concurrency_valid_max" {
   command = plan
-
   variables {
     environment = "dev"
     concurrency = 1000
   }
 }
 
-run "invalid_concurrency_zero" {
+run "concurrency_invalid_zero" {
   command = plan
-
   variables {
     environment = "dev"
     concurrency = 0
   }
-
   expect_failures = [var.concurrency]
 }
 
-run "invalid_concurrency_above_maximum" {
+run "concurrency_invalid_above_max" {
   command = plan
-
   variables {
     environment = "dev"
     concurrency = 1001
   }
-
   expect_failures = [var.concurrency]
 }
 
 # =============================================================================
-# request_timeout Tests (1-3600)
+# request_timeout: 1-3600
 # =============================================================================
 
-run "valid_request_timeout_minimum" {
+run "request_timeout_valid_min" {
   command = plan
-
   variables {
     environment     = "dev"
     request_timeout = 1
   }
 }
 
-run "valid_request_timeout_maximum" {
+run "request_timeout_valid_max" {
   command = plan
-
   variables {
     environment     = "dev"
     request_timeout = 3600
   }
 }
 
-run "invalid_request_timeout_zero" {
+run "request_timeout_invalid_zero" {
   command = plan
-
   variables {
     environment     = "dev"
     request_timeout = 0
   }
-
   expect_failures = [var.request_timeout]
 }
 
-run "invalid_request_timeout_above_maximum" {
+run "request_timeout_invalid_above_max" {
   command = plan
-
   variables {
     environment     = "dev"
     request_timeout = 3601
   }
-
   expect_failures = [var.request_timeout]
 }
 
 # =============================================================================
-# log_level Tests (DEBUG, INFO, WARNING, ERROR)
+# log_level: DEBUG, INFO, WARNING, ERROR
 # =============================================================================
 
-run "valid_log_level_debug" {
+run "log_level_valid_debug" {
   command = plan
-
   variables {
     environment = "dev"
     log_level   = "DEBUG"
   }
 }
 
-run "valid_log_level_info" {
+run "log_level_valid_info" {
   command = plan
-
   variables {
     environment = "dev"
     log_level   = "INFO"
   }
 }
 
-run "valid_log_level_warning" {
+run "log_level_valid_warning" {
   command = plan
-
   variables {
     environment = "dev"
     log_level   = "WARNING"
   }
 }
 
-run "valid_log_level_error" {
+run "log_level_valid_error" {
   command = plan
-
   variables {
     environment = "dev"
     log_level   = "ERROR"
   }
 }
 
-run "invalid_log_level_lowercase" {
+run "log_level_invalid_lowercase" {
   command = plan
-
   variables {
     environment = "dev"
     log_level   = "info"
   }
-
   expect_failures = [var.log_level]
 }
 
-run "invalid_log_level_trace" {
+run "log_level_invalid_trace" {
   command = plan
-
   variables {
     environment = "dev"
     log_level   = "TRACE"
   }
-
   expect_failures = [var.log_level]
 }
 
 # =============================================================================
-# vpc_egress Tests (ALL_TRAFFIC, PRIVATE_RANGES_ONLY)
+# vpc_egress: ALL_TRAFFIC, PRIVATE_RANGES_ONLY
 # =============================================================================
 
-run "valid_vpc_egress_all_traffic" {
+run "vpc_egress_valid_all_traffic" {
   command = plan
-
   variables {
     environment = "dev"
     vpc_egress  = "ALL_TRAFFIC"
   }
 }
 
-run "valid_vpc_egress_private_ranges" {
+run "vpc_egress_valid_private_ranges" {
   command = plan
-
   variables {
     environment = "dev"
     vpc_egress  = "PRIVATE_RANGES_ONLY"
   }
 }
 
-run "invalid_vpc_egress_lowercase" {
+run "vpc_egress_invalid_lowercase" {
   command = plan
-
   variables {
     environment = "dev"
     vpc_egress  = "all_traffic"
   }
+  expect_failures = [var.vpc_egress]
+}
 
+run "vpc_egress_invalid_value" {
+  command = plan
+  variables {
+    environment = "dev"
+    vpc_egress  = "INVALID"
+  }
   expect_failures = [var.vpc_egress]
 }
 
 # =============================================================================
-# trace_sampling_rate Tests (0.0-1.0)
+# trace_sampling_rate: 0.0-1.0
 # =============================================================================
 
-run "valid_trace_sampling_rate_zero" {
+run "trace_sampling_rate_valid_zero" {
   command = plan
-
   variables {
     environment         = "dev"
     trace_sampling_rate = 0
   }
 }
 
-run "valid_trace_sampling_rate_half" {
+run "trace_sampling_rate_valid_half" {
   command = plan
-
   variables {
     environment         = "dev"
     trace_sampling_rate = 0.5
   }
 }
 
-run "valid_trace_sampling_rate_one" {
+run "trace_sampling_rate_valid_one" {
   command = plan
-
   variables {
     environment         = "dev"
     trace_sampling_rate = 1
   }
 }
 
-run "invalid_trace_sampling_rate_negative" {
+run "trace_sampling_rate_invalid_negative" {
   command = plan
-
   variables {
     environment         = "dev"
     trace_sampling_rate = -0.1
   }
-
   expect_failures = [var.trace_sampling_rate]
 }
 
-run "invalid_trace_sampling_rate_above_one" {
+run "trace_sampling_rate_invalid_above_one" {
   command = plan
-
   variables {
     environment         = "dev"
     trace_sampling_rate = 1.1
   }
-
   expect_failures = [var.trace_sampling_rate]
 }
