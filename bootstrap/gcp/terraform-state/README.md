@@ -65,37 +65,50 @@ Storing Terraform state in a remote backend (GCS) provides:
    terraform output bucket_name
    ```
 
-### Step 3: Update Backend Configuration
+### Step 3: Configure Backend for Architecture Patterns
 
-After creating the state bucket, update the `backend.tf` files in each architecture:
+After creating the state bucket, configure the backend using **partial backend configuration** (recommended):
 
-**Example**: `architectures/microservices-gke/gcp/environments/dev/backend.tf`
+1. **Create `backend.hcl`** in each architecture pattern directory (git-ignored):
 
-```hcl
-terraform {
-  backend "gcs" {
-    bucket = "tf-architecture-patterns-tfstate"  # From terraform output
-    prefix = "terraform/microservices-gke/dev"
-  }
-}
-```
+   ```bash
+   cd architectures/<pattern>/gcp
+   cp backend.hcl.example backend.hcl
+   ```
+
+2. **Edit `backend.hcl`** with the bucket name from terraform output:
+
+   ```hcl
+   bucket = "tf-architecture-patterns-tfstate"  # From terraform output
+   prefix = "terraform/<pattern>/state"
+   ```
+
+3. **Initialize with backend config**:
+
+   ```bash
+   terraform init -backend-config=backend.hcl
+   ```
 
 **Prefix naming convention**:
-- Format: `terraform/<architecture>/<environment>`
+- Format: `terraform/<pattern>/state`
 - Examples:
-  - `terraform/microservices-gke/dev`
-  - `terraform/event-driven/prod`
-  - `terraform/workflow-batch/dev`
+  - `terraform/event-driven/state`
+  - `terraform/microservices-gke/state` (future)
+  - `terraform/workflow-batch/state` (future)
+
+**Note**: Environment separation is handled via `.auto.tfvars` files (e.g., `dev.auto.tfvars`), not separate directories
 
 ### Step 4: Migrate Existing State (if any)
 
 If you have local state files, migrate them to GCS:
 
 ```bash
-cd architectures/microservices-gke/gcp/environments/dev
+cd architectures/<pattern>/gcp
+
+# Create backend.hcl first (see Step 3)
 
 # This will prompt to copy existing state to GCS
-terraform init -migrate-state
+terraform init -backend-config=backend.hcl -migrate-state
 ```
 
 ## What Gets Created
@@ -125,23 +138,19 @@ The state files will be organized as:
 
 ```
 gs://tf-architecture-patterns-tfstate/
-├── terraform/
-│   ├── microservices-gke/
-│   │   ├── dev/
-│   │   │   └── default.tfstate
-│   │   └── prod/
-│   │       └── default.tfstate
-│   ├── event-driven/
-│   │   ├── dev/
-│   │   │   └── default.tfstate
-│   │   └── prod/
-│   │       └── default.tfstate
-│   └── workflow-batch/
-│       ├── dev/
-│       │   └── default.tfstate
-│       └── prod/
-│           └── default.tfstate
+└── terraform/
+    ├── event-driven/
+    │   └── state/
+    │       └── default.tfstate
+    ├── microservices-gke/  # Future pattern
+    │   └── state/
+    │       └── default.tfstate
+    └── workflow-batch/     # Future pattern
+        └── state/
+            └── default.tfstate
 ```
+
+**Note**: Each pattern stores one state file. Environment-specific configuration is managed through `.auto.tfvars` files (e.g., `dev.auto.tfvars`, `prod.auto.tfvars`), not separate state files
 
 ## Verification
 
@@ -215,8 +224,23 @@ If you really need to delete:
 3. **Access Control**: Grant minimal permissions (don't use `allUsers`)
 4. **Monitoring**: Enable GCS audit logs to track state changes
 
+## Next Steps
+
+After setting up the Terraform state bucket:
+
+1. **Configure Secret Manager** (`bootstrap/gcp/secrets/`):
+   - Create secrets for state bucket names
+   - Store other CI/CD secrets
+   - See `bootstrap/gcp/secrets/README.md`
+
+2. **Configure Architecture Patterns**:
+   - Create `backend.hcl` in each pattern (e.g., `architectures/event-driven/gcp/`)
+   - Initialize with: `terraform init -backend-config=backend.hcl`
+   - See `docs/backend-setup.md` for details
+
 ## References
 
 - [Terraform GCS Backend](https://developer.hashicorp.com/terraform/language/settings/backends/gcs)
 - [GCS Bucket Versioning](https://cloud.google.com/storage/docs/object-versioning)
 - [Terraform State Best Practices](https://developer.hashicorp.com/terraform/language/state/remote)
+- [Partial Backend Configuration](https://developer.hashicorp.com/terraform/language/settings/backends/configuration#partial-configuration)

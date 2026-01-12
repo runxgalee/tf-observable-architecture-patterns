@@ -51,7 +51,7 @@ tf-observable-architecture-patterns/
 
 ```bash
 # Choose a pattern (event-driven/microservices-gke/workflow-batch)
-cd architectures/event-driven/gcp/environments/dev
+cd architectures/event-driven
 
 # Prepare configuration
 cp terraform.tfvars.example terraform.tfvars

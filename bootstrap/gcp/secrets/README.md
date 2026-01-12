@@ -68,13 +68,20 @@ Secrets for alerting and monitoring integrations.
 - `monitoring-prod-pagerduty-integration-key`: PagerDuty key for prod
 
 ### 3. Architecture (`architecture`)
-Secrets specific to architecture patterns (event-driven, microservices-gke, workflow-batch).
+Secrets specific to architecture patterns.
+
+**Current patterns**:
+- `event-driven` (implemented)
+
+**Future patterns**:
+- `microservices-gke` (planned)
+- `workflow-batch` (planned)
 
 **Naming**: `{pattern}-{env}-{name}`
 
 **Examples**:
 - `event-driven-dev-api-key`: API key for event-driven pattern in dev
-- `microservices-prod-database-url`: Database connection for microservices in prod
+- `microservices-prod-database-url`: Database connection for microservices in prod (future)
 
 ### 4. Custom Categories
 You can define custom categories for project-specific needs.
@@ -216,7 +223,7 @@ secrets = {
     service_accounts = ["prod-event-driven-cloudrun@project.iam.gserviceaccount.com"]
   }
 
-  # Architecture: Event-Driven
+  # Architecture: Event-Driven (implemented)
   "event-driven-api-key" = {
     environments = ["dev", "prod"]
     category     = "architecture"
@@ -227,16 +234,16 @@ secrets = {
     ]
   }
 
-  # Architecture: Microservices GKE
-  "microservices-database-url" = {
-    environments = ["dev", "prod"]
-    category     = "architecture"
-    description  = "Database connection string for microservices"
-    service_accounts = [
-      "dev-microservices-api@project.iam.gserviceaccount.com",
-      "prod-microservices-api@project.iam.gserviceaccount.com"
-    ]
-  }
+  # Architecture: Microservices GKE (future pattern)
+  # "microservices-database-url" = {
+  #   environments = ["dev", "prod"]
+  #   category     = "architecture"
+  #   description  = "Database connection string for microservices"
+  #   service_accounts = [
+  #     "dev-microservices-api@project.iam.gserviceaccount.com",
+  #     "prod-microservices-api@project.iam.gserviceaccount.com"
+  #   ]
+  # }
 }
 
 additional_labels = {
@@ -305,7 +312,9 @@ resource "google_cloud_run_v2_service" "app" {
 }
 ```
 
-## Using Secrets in GKE
+## Using Secrets in GKE (Future Pattern)
+
+**Note**: This is for the planned `microservices-gke` pattern.
 
 ```yaml
 # Kubernetes manifest
@@ -448,6 +457,24 @@ After applying Terraform, IAM changes may take up to 2 minutes to propagate. If 
 5. ✅ Update remaining workflows
 6. ⚠️ Keep `WIF_PROVIDER` in GitHub Secrets (required for bootstrap)
 7. ✅ Remove other secrets from GitHub Secrets after migration
+
+## Next Steps
+
+After setting up Secret Manager:
+
+1. **Populate Secret Values**:
+   - Use `gcloud secrets versions add` to add actual secret values
+   - See "Populate Secret Data" section above
+
+2. **Update GitHub Actions Workflows**:
+   - Use `google-github-actions/get-secretmanager-secrets` to retrieve secrets
+   - Replace GitHub Secrets references with Secret Manager
+   - See `.github/workflows/` for examples
+
+3. **Configure Architecture Patterns**:
+   - Reference secrets in Terraform configurations
+   - Use Cloud Run secret mounting or environment variables
+   - See architecture pattern READMEs for examples
 
 ## References
 

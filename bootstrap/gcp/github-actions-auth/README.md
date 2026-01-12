@@ -66,23 +66,21 @@ gcloud services enable sts.googleapis.com
 
 1. Go to your GitHub repository
 2. Navigate to: **Settings → Secrets and variables → Actions**
-3. Add the following secrets (values from terraform output):
+3. Add the following secret (value from terraform output):
 
    - **WIF_PROVIDER**:
      ```
      projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL_ID/providers/PROVIDER_ID
      ```
 
-   - **WIF_SERVICE_ACCOUNT**:
-     ```
-     github-actions-terraform@PROJECT_ID.iam.gserviceaccount.com
-     ```
-
-   You can get these values by running:
+   You can get this value by running:
    ```bash
    terraform output workload_identity_provider
-   terraform output service_account_email
    ```
+
+**Note**: Other secrets (e.g., service account email, state bucket name) are now managed through GCP Secret Manager instead of GitHub Secrets. See `bootstrap/gcp/secrets/` for details.
+
+**WIF_PROVIDER remains in GitHub Secrets** because it's needed for the initial authentication step before accessing Secret Manager
 
 ### Step 5: Verify Setup
 
@@ -98,6 +96,7 @@ This Terraform configuration creates:
 4. **IAM Bindings**:
    - Allows GitHub Actions to impersonate the service account
    - Grants necessary roles to the service account for Terraform operations
+   - Grants `roles/secretmanager.secretAccessor` for accessing Secret Manager secrets
 
 ## Security Considerations
 
@@ -151,8 +150,28 @@ If Terraform operations fail with permission errors:
 2. Add additional roles to the `terraform_roles` variable
 3. Run `terraform apply` again to update IAM bindings
 
+## Next Steps
+
+After setting up GitHub Actions authentication:
+
+1. **Create Terraform State Bucket** (`bootstrap/gcp/terraform-state/`):
+   - Set up GCS bucket for remote state
+   - Grant GitHub Actions service account access
+   - See `bootstrap/gcp/terraform-state/README.md`
+
+2. **Configure Secret Manager** (`bootstrap/gcp/secrets/`):
+   - Store service account email and state bucket names
+   - Configure secrets for architecture patterns
+   - See `bootstrap/gcp/secrets/README.md`
+
+3. **Update GitHub Actions Workflows**:
+   - Use WIF_PROVIDER secret for authentication
+   - Retrieve other secrets from Secret Manager
+   - See `.github/workflows/` for examples
+
 ## References
 
 - [Google Cloud Workload Identity Federation](https://cloud.google.com/iam/docs/workload-identity-federation)
 - [GitHub Actions OIDC](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect)
 - [google-github-actions/auth](https://github.com/google-github-actions/auth)
+- [GCP Secret Manager](https://cloud.google.com/secret-manager/docs)
