@@ -7,6 +7,7 @@ set -e
 PATTERN=$1
 REPO_ROOT=$(git rev-parse --show-toplevel)
 PATTERN_DIR="${REPO_ROOT}/architectures/${PATTERN}/gcp"
+TRIVY_VERSION="0.58.0"
 
 # Color codes for output
 RED='\033[0;31m'
@@ -43,7 +44,7 @@ echo -e "${GREEN}=== Validating pattern: ${PATTERN} ===${NC}"
 echo -e "Pattern directory: ${PATTERN_DIR}\n"
 
 # Step 1: Terraform Format Check
-echo -e "${YELLOW}[1/4] Running terraform fmt...${NC}"
+echo -e "${YELLOW}[1/5] Running terraform fmt...${NC}"
 cd "$PATTERN_DIR"
 if terraform fmt -check -recursive; then
   echo -e "${GREEN}✓ Format check passed${NC}\n"
@@ -53,7 +54,7 @@ else
 fi
 
 # Step 2: Terraform Validate
-echo -e "${YELLOW}[2/4] Running terraform validate...${NC}"
+echo -e "${YELLOW}[2/5] Running terraform validate...${NC}"
 for env_dir in "${PATTERN_DIR}"/environments/*/; do
   if [ -d "$env_dir" ]; then
     env_name=$(basename "$env_dir")
@@ -89,7 +90,7 @@ fi
 echo ""
 
 # Step 3: TFLint
-echo -e "${YELLOW}[3/4] Running tflint...${NC}"
+echo -e "${YELLOW}[3/5] Running tflint...${NC}"
 cd "$PATTERN_DIR"
 
 # Check if tflint is installed
@@ -134,21 +135,45 @@ fi
 
 echo ""
 
-# Step 4: Terraform Test (if test files exist)
-echo -e "${YELLOW}[4/4] Running terraform test...${NC}"
+# Step 4: Trivy Security Scan (Docker-based)
+echo -e "${YELLOW}[4/5] Running trivy security scan...${NC}"
 cd "$PATTERN_DIR"
 
-# Check for test files in multiple locations
+if ! command -v docker &> /dev/null; then
+  echo -e "${YELLOW}  ⊘ Docker not found, skipping Trivy scan (install Docker to enable)${NC}"
+elif ! docker info > /dev/null 2>&1; then
+  echo -e "${YELLOW}  ⊘ Docker daemon not running, skipping Trivy scan${NC}"
+else
+  echo "  Using Trivy ${TRIVY_VERSION} via Docker..."
+
+  if docker run --rm -v "${REPO_ROOT}:/work" "aquasec/trivy:${TRIVY_VERSION}" config \
+    --severity CRITICAL,HIGH \
+    --exit-code 1 \
+    "/work/architectures/${PATTERN}/gcp" 2>&1; then
+    echo -e "${GREEN}  ✓ Trivy security scan passed${NC}"
+  else
+    echo -e "${RED}  ✗ Trivy found security issues${NC}"
+    exit 1
+  fi
+fi
+
+echo ""
+
+# Step 5: Terraform Test (if test files exist)
+echo -e "${YELLOW}[5/5] Running terraform test...${NC}"
+cd "$PATTERN_DIR"
+
+# Check for test files in tests/unit directory
 test_files_found=false
-if find . -name "*.tftest.hcl" -type f | grep -q .; then
+if [ -d "tests/unit" ] && find tests/unit -name "*.tftest.hcl" -type f | grep -q .; then
   test_files_found=true
-  test_count=$(find . -name "*.tftest.hcl" -type f | wc -l | tr -d ' ')
-  echo "  Found $test_count test file(s)"
+  test_count=$(find tests/unit -name "*.tftest.hcl" -type f | wc -l | tr -d ' ')
+  echo "  Found $test_count test file(s) in tests/unit/"
 
   # Initialize for testing
   terraform init -backend=false > /dev/null 2>&1
 
-  if terraform test; then
+  if terraform test -test-directory=tests/unit; then
     echo -e "${GREEN}  ✓ Tests passed${NC}"
   else
     echo -e "${RED}  ✗ Tests failed${NC}"
@@ -157,7 +182,7 @@ if find . -name "*.tftest.hcl" -type f | grep -q .; then
 fi
 
 if [ "$test_files_found" = false ]; then
-  echo -e "${YELLOW}  ⊘ No test files found (*.tftest.hcl)${NC}"
+  echo -e "${YELLOW}  ⊘ No test files found in tests/unit/ (*.tftest.hcl)${NC}"
 fi
 
 echo ""
