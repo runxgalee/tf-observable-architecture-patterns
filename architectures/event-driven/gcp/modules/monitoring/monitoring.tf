@@ -146,7 +146,7 @@ resource "google_monitoring_alert_policy" "old_unacked_messages" {
 resource "google_logging_metric" "event_processing_success" {
   count = var.enable_custom_metrics ? 1 : 0
 
-  name    = "${var.resource_prefix}_event_processing_success"
+  name    = "${local.resource_prefix}_event_processing_success"
   project = var.project_id
 
   filter = <<-EOT
@@ -166,7 +166,7 @@ resource "google_logging_metric" "event_processing_success" {
 resource "google_logging_metric" "event_processing_failure" {
   count = var.enable_custom_metrics ? 1 : 0
 
-  name    = "${var.resource_prefix}_event_processing_failure"
+  name    = "${local.resource_prefix}_event_processing_failure"
   project = var.project_id
 
   filter = <<-EOT
