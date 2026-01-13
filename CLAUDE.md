@@ -57,7 +57,7 @@ terraform init -backend-config=backend.hcl
 tflint --init && tflint
 
 # Run Terraform tests
-terraform test -test-directory=tests/unit
+terraform test -test-directory=tests
 ```
 
 ### Key Principles
@@ -74,7 +74,7 @@ terraform test -test-directory=tests/unit
 
 - Root configs: `architectures/<pattern>/gcp/*.tf`
 - Terraform modules: `architectures/<pattern>/gcp/modules/`
-- Terraform tests: `architectures/<pattern>/gcp/tests/unit/`
+- Terraform tests: `architectures/<pattern>/gcp/tests/`
 - CI/CD workflows: `.github/workflows/`
 - Bootstrap resources: `bootstrap/gcp/`
 - Documentation: `docs/`

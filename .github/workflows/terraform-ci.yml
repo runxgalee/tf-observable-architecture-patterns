@@ -219,7 +219,7 @@ jobs:
       - name: Check for test files
         id: check-tests
         run: |
-          TEST_DIR="architectures/${{ matrix.pattern }}/gcp/tests/unit"
+          TEST_DIR="architectures/${{ matrix.pattern }}/gcp/tests"
           if [ -d "$TEST_DIR" ] && [ "$(ls -A $TEST_DIR/*.tftest.hcl 2>/dev/null)" ]; then
             echo "has_tests=true" >> $GITHUB_OUTPUT
             echo "Found test files in $TEST_DIR"
@@ -238,7 +238,7 @@ jobs:
         if: steps.check-tests.outputs.has_tests == 'true'
         run: |
           cd architectures/${{ matrix.pattern }}/gcp
-          terraform test -test-directory=tests/unit
+          terraform test -test-directory=tests
 
   ci-summary:
     name: CI Summary

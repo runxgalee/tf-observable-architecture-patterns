@@ -163,17 +163,17 @@ echo ""
 echo -e "${YELLOW}[5/5] Running terraform test...${NC}"
 cd "$PATTERN_DIR"
 
-# Check for test files in tests/unit directory
+# Check for test files in tests directory
 test_files_found=false
-if [ -d "tests/unit" ] && find tests/unit -name "*.tftest.hcl" -type f | grep -q .; then
+if [ -d "tests" ] && find tests -name "*.tftest.hcl" -type f | grep -q .; then
   test_files_found=true
-  test_count=$(find tests/unit -name "*.tftest.hcl" -type f | wc -l | tr -d ' ')
-  echo "  Found $test_count test file(s) in tests/unit/"
+  test_count=$(find tests -name "*.tftest.hcl" -type f | wc -l | tr -d ' ')
+  echo "  Found $test_count test file(s) in tests/"
 
   # Initialize for testing
   terraform init -backend=false > /dev/null 2>&1
 
-  if terraform test -test-directory=tests/unit; then
+  if terraform test -test-directory=tests; then
     echo -e "${GREEN}  ✓ Tests passed${NC}"
   else
     echo -e "${RED}  ✗ Tests failed${NC}"
@@ -182,7 +182,7 @@ if [ -d "tests/unit" ] && find tests/unit -name "*.tftest.hcl" -type f | grep -q
 fi
 
 if [ "$test_files_found" = false ]; then
-  echo -e "${YELLOW}  ⊘ No test files found in tests/unit/ (*.tftest.hcl)${NC}"
+  echo -e "${YELLOW}  ⊘ No test files found in tests/ (*.tftest.hcl)${NC}"
 fi
 
 echo ""
