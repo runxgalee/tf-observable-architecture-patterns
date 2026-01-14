@@ -1,0 +1,47 @@
+# Development Environment Configuration
+# Non-sensitive common settings (safe to commit to Git)
+
+# Basic Configuration
+environment  = "dev"
+region       = "asia-northeast1"
+project_name = "events"
+
+# Pub/Sub Configuration
+# topic_name                              = "events"
+message_retention_duration              = "86400s" # 24 hours
+ack_deadline_seconds                    = 60
+retry_minimum_backoff                   = "10s"
+retry_maximum_backoff                   = "600s"
+max_delivery_attempts                   = 5
+subscription_message_retention_duration = "604800s" # 7 days
+enable_exactly_once_delivery            = false
+
+# Cloud Run Configuration
+min_instances        = 0  # Scale to zero for cost savings in dev
+max_instances        = 10 # Lower limit for dev
+concurrency          = 80
+cpu_limit            = "1"
+memory_limit         = "512Mi"
+cpu_always_allocated = false
+startup_cpu_boost    = true
+request_timeout      = 300
+log_level            = "DEBUG" # Verbose logging for dev
+enable_health_check  = true
+health_check_path    = "/health"
+
+# VPC Configuration (optional)
+vpc_connector_name = "" # Leave empty if not using VPC
+vpc_egress         = "PRIVATE_RANGES_ONLY"
+
+# IAM Configuration
+cloud_run_additional_roles = [
+  # "roles/cloudsql.client",
+  # "roles/secretmanager.secretAccessor",
+]
+
+# Monitoring Configuration
+enable_monitoring                    = true
+dlq_alert_threshold                  = 0   # Alert on any DLQ message
+error_rate_threshold                 = 10  # Higher threshold for dev
+oldest_unacked_message_age_threshold = 600 # 10 minutes
+enable_custom_metrics                = true
