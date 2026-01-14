@@ -1,0 +1,2 @@
+# Pub/Sub Publisher Dependencies
+google-cloud-pubsub>=2.21.0

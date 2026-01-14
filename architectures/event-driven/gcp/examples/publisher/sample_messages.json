@@ -1,0 +1,42 @@
+[
+  {
+    "event_type": "user_created",
+    "data": {
+      "user_id": "u001",
+      "email": "user1@example.com",
+      "name": "Alice Smith"
+    }
+  },
+  {
+    "event_type": "user_created",
+    "data": {
+      "user_id": "u002",
+      "email": "user2@example.com",
+      "name": "Bob Johnson"
+    }
+  },
+  {
+    "event_type": "order_created",
+    "data": {
+      "order_id": "o001",
+      "user_id": "u001",
+      "amount": 150.00,
+      "items": ["item-a", "item-b"]
+    }
+  },
+  {
+    "event_type": "order_completed",
+    "data": {
+      "order_id": "o001",
+      "status": "completed",
+      "completed_at": "2024-01-15T12:00:00Z"
+    }
+  },
+  {
+    "event_type": "error",
+    "data": {
+      "message": "This message will trigger DLQ if handler rejects it",
+      "should_fail": true
+    }
+  }
+]
