@@ -1,84 +1,106 @@
 # Terraform GCP Observable Architecture Patterns
 
-Production-ready GCP architecture patterns with Terraform and comprehensive observability
+Production-ready GCP architecture patterns with Terraform and comprehensive observability.
 
 ## Features
 
-- **Environment Isolation**: Completely separated state management for dev/prod
-- **Modular Design**: Reusable Terraform modules
+- **Environment Isolation**: Separated state management via `.auto.tfvars` files
+- **Modular Design**: Reusable Terraform modules per component
 - **Production-Ready**: Security, monitoring, and alerting built-in
 - **GitOps Support**: Automated deployment with GitHub Actions
+- **Native Testing**: Terraform test framework (`terraform test`)
 
 ## Architecture Patterns
 
-### 1. Event-Driven Architecture
-Event-driven system using Pub/Sub + Cloud Run
+### Event-Driven Architecture (Implemented)
 
-- Push-based message delivery, Dead Letter Queue, automatic retry
-- Details: [patterns/event-driven/gcp/](architectures/event-driven/gcp/)
+Event-driven system using Pub/Sub + Cloud Run.
 
-### 2. Microservices on GKE Autopilot
-Microservices architecture with GKE Autopilot + Ingress
+- Push-based message delivery with Dead Letter Queue
+- Automatic retry logic and error handling
+- Comprehensive monitoring and alerting
+- Details: [architectures/event-driven/gcp/](architectures/event-driven/gcp/)
 
-- Fully managed Kubernetes, Workload Identity, Managed SSL
-- Details: [patterns/microservices-gke/gcp/](architectures/microservices-gke/gcp/)
+### Future Patterns (Planned)
 
-### 3. Workflow Batch Pattern
-Batch processing with Cloud Scheduler + Workflows + Cloud Run Job
-
-- Scheduled execution, job orchestration, error handling
-- Details: [patterns/workflow-batch/gcp/](architectures/workflow-batch/gcp/)
+- **Microservices on GKE**: GKE Autopilot with Workload Identity
+- **Workflow Batch**: Cloud Scheduler → Workflows → Cloud Run Job
 
 ## Project Structure
 
 ```
 tf-observable-architecture-patterns/
-├── patterns/                    # Architecture patterns
-│   ├── event-driven/gcp/
-│   │   ├── modules/            # Reusable modules
-│   │   └── environments/       # dev/prod configurations
-│   ├── microservices-gke/
-│   │   ├── gcp/               # Terraform configuration
-│   │   └── k8s/               # Kubernetes manifests
-│   └── workflow-batch/gcp/
-│       ├── modules/
-│       └── environments/
+├── architectures/               # Architecture pattern implementations
+│   └── event-driven/gcp/
+│       ├── *.tf                # Root configuration files
+│       ├── dev.auto.tfvars     # Environment-specific values
+│       ├── modules/            # Modular components
+│       │   ├── artifact_registry/
+│       │   ├── cloudrun/
+│       │   ├── iam_bindings/
+│       │   ├── monitoring/
+│       │   ├── observability/
+│       │   ├── pubsub/
+│       │   └── service_accounts/
+│       └── tests/              # Terraform native tests
+├── bootstrap/gcp/              # Bootstrap resources
+│   ├── github-actions-auth/    # Workload Identity Federation
+│   ├── secrets/                # Secret Manager setup
+│   └── terraform-state/        # GCS state bucket
 ├── .github/workflows/          # GitHub Actions CI/CD
+├── scripts/                    # Utility scripts
 └── docs/                       # Architecture documentation
 ```
 
 ## Quick Start
 
 ```bash
-# Choose a pattern (event-driven/microservices-gke/workflow-batch)
-cd architectures/event-driven
+# Navigate to pattern
+cd architectures/event-driven/gcp
 
-# Prepare configuration
+# Copy and configure
 cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars and set your project_id
+cp secrets.auto.tfvars.example secrets.auto.tfvars
+cp backend.hcl.example backend.hcl
+# Edit files with your values
 
-# Deploy
-terraform init
+# Initialize and deploy
+terraform init -backend-config=backend.hcl
 terraform plan
 terraform apply
 ```
 
-## GitOps (CI/CD)
+## CI/CD
 
-Automated deployment with GitHub Actions
+Automated deployment with GitHub Actions.
 
-- **CI**: terraform fmt/validate/tflint, security scan (Trivy)
+- **CI**: Format check, validation, TFLint, Trivy security scan, Terraform test
 - **Deploy**: Change detection, environment-specific deployment, approval workflow
-- **Auth**: GCP Workload Identity Federation
-
-Details: [docs/gitops-setup.md](docs/gitops-setup.md)
+- **Auth**: GCP Workload Identity Federation (no service account keys)
 
 ## Prerequisites
 
 - Terraform >= 1.13
 - Google Cloud SDK
-- GCP project + authentication (`gcloud auth application-default login`)
-- Enable required GCP APIs (see each pattern's README)
+- GCP project with authentication (`gcloud auth application-default login`)
+- Enable required GCP APIs (see each pattern's documentation)
+
+## Development
+
+```bash
+# Format and validate
+terraform fmt -recursive
+terraform validate
+
+# Run TFLint
+tflint --init && tflint
+
+# Run tests
+terraform test -test-directory=tests
+
+# Validate pattern (all checks)
+./scripts/validate-tf.sh event-driven
+```
 
 ## License
 
@@ -88,4 +110,4 @@ MIT License
 
 - [Terraform Best Practices](https://www.terraform-best-practices.com/)
 - [Google Cloud Architecture Center](https://cloud.google.com/architecture)
-- [Detailed design documents](docs/)
+- [Documentation](docs/)
