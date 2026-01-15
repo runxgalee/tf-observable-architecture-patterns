@@ -104,7 +104,7 @@ jobs:
       - name: Check GCP Credentials
         id: check_creds
         run: |
-          if [ -z "${{ secrets.WIF_PROVIDER }}" ] || [ -z "${{ secrets.WIF_SERVICE_ACCOUNT }}" ] || [ -z "${{ secrets.GCP_PROJECT_ID }}" ]; then
+          if [ -z "${{ secrets.WIF_PROVIDER }}" ] || [ -z "${{ secrets.WIF_SERVICE_ACCOUNT }}" ] || [ -z "${{ env.GCP_PROJECT_ID }}" ]; then
             echo "::error::GCP credentials not configured"
             echo "Please set WIF_PROVIDER, WIF_SERVICE_ACCOUNT, and GCP_PROJECT_ID secrets in repository settings"
             echo "has_creds=false" >> $GITHUB_OUTPUT
