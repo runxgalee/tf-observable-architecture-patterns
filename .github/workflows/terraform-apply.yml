@@ -29,6 +29,10 @@ permissions:
   id-token: write
   pull-requests: write
 
+concurrency:
+  group: terraform-apply-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   TF_VERSION: '1.13.0'
 
@@ -36,6 +40,7 @@ jobs:
   check-ci-result:
     name: Check CI Result
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     outputs:
       should_run: ${{ steps.check.outputs.should_run }}
@@ -59,4 +64,118 @@ jobs:
     needs: check-ci-result
     if: needs.check-ci-result.outputs.should_run == 'true'
     uses: ./.github/workflows/_patterns-config.yml
+
+  terraform-apply:
+    name: Apply ${{ matrix.pattern }}/${{ matrix.environment }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs:
+      - check-ci-result
+      - get-patterns
+    if: needs.check-ci-result.outputs.should_run == 'true'
+    environment:
+      name: ${{ matrix.environment }}
+    strategy:
+      matrix:
+        pattern: ${{ fromJson(needs.get-patterns.outputs.all_patterns) }}
+        environment: [dev]
+      fail-fast: false
+    defaults:
+      run:
+        working-directory: architectures/${{ matrix.pattern }}/gcp
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Terraform providers
+        uses: actions/cache@v4
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
+          restore-keys: |
+            ${{ runner.os }}-terraform-
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Check GCP Credentials
+        id: check_creds
+        run: |
+          if [ -z "${{ secrets.WIF_PROVIDER }}" ] || [ -z "${{ secrets.WIF_SERVICE_ACCOUNT }}" ] || [ -z "${{ secrets.GCP_PROJECT_ID }}" ]; then
+            echo "::error::GCP credentials not configured"
+            echo "Please set WIF_PROVIDER, WIF_SERVICE_ACCOUNT, and GCP_PROJECT_ID secrets in repository settings"
+            echo "has_creds=false" >> $GITHUB_OUTPUT
+            exit 1
+          else
+            echo "GCP credentials found"
+            echo "has_creds=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Authenticate to Google Cloud
+        if: steps.check_creds.outputs.has_creds == 'true'
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Get secrets from Secret Manager
+        if: steps.check_creds.outputs.has_creds == 'true'
+        id: secrets
+        uses: google-github-actions/get-secretmanager-secrets@v3
+        with:
+          secrets: |-
+            tf_state_bucket:projects/${{ secrets.GCP_PROJECT_ID }}/secrets/${{ matrix.environment }}-tf-state-bucket
+
+      - name: Terraform Init
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ steps.secrets.outputs.tf_state_bucket }}" \
+            -backend-config="prefix=terraform/${{ matrix.pattern }}/gcp/${{ matrix.environment }}"
+        env:
+          TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          terraform plan -input=false -out=tfplan -no-color \
+            -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
+            -var="environment=${{ matrix.environment }}" \
+            --var-file="${{ matrix.environment }}.auto.tfvars"
+        continue-on-error: true
+
+      - name: Terraform Apply
+        if: steps.plan.outcome == 'success'
+        run: terraform apply -auto-approve tfplan
+
+      - name: Comment on failure
+        if: steps.plan.outcome == 'failure'
+        run: |
+          echo "::error::Terraform plan failed for ${{ matrix.pattern }}/${{ matrix.environment }}"
+          exit 1
+
+  summary:
+    name: Deployment Summary
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs:
+      - check-ci-result
+      - get-patterns
+      - terraform-apply
+    if: always() && needs.check-ci-result.outputs.should_run == 'true'
+    steps:
+      - name: Summary
+        run: |
+          echo "## Terraform Apply Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" == "workflow_run" ]; then
+            echo "**CI Workflow:** ${{ github.event.workflow_run.name }}" >> $GITHUB_STEP_SUMMARY
+            echo "**CI Result:** ${{ github.event.workflow_run.conclusion }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "**Patterns processed:** ${{ needs.get-patterns.outputs.all_patterns_list }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Environments:** dev" >> $GITHUB_STEP_SUMMARY
+          echo "**Apply Status:** ${{ needs.terraform-apply.result }}" >> $GITHUB_STEP_SUMMARY
 

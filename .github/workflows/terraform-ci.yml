@@ -27,6 +27,7 @@ jobs:
   terraform-format:
     name: Format Check - ${{ matrix.pattern }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: get-patterns
     strategy:
       matrix:
@@ -58,6 +59,7 @@ jobs:
   terraform-validate:
     name: Validate - ${{ matrix.pattern }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: get-patterns
     strategy:
       matrix:
@@ -71,6 +73,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Cache Terraform providers
+        uses: actions/cache@v4
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
+          restore-keys: |
+            ${{ runner.os }}-terraform-
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -78,6 +88,8 @@ jobs:
 
       - name: Terraform Init (backend=false)
         run: terraform init -backend=false
+        env:
+          TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
 
       - name: Terraform Validate
         id: validate
@@ -86,6 +98,7 @@ jobs:
   tflint:
     name: TFLint - ${{ matrix.pattern }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: get-patterns
     strategy:
       matrix:
@@ -95,6 +108,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Cache TFLint plugins
+        uses: actions/cache@v4
+        with:
+          path: ~/.tflint.d/plugins
+          key: ${{ runner.os }}-tflint-${{ hashFiles('**/.tflint.hcl') }}
+          restore-keys: |
+            ${{ runner.os }}-tflint-
 
       - name: Setup TFLint
         uses: terraform-linters/setup-tflint@v4
@@ -138,6 +159,7 @@ jobs:
   terraform-docs:
     name: Docs Check - ${{ matrix.pattern }}
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: get-patterns
     strategy:
       matrix:
@@ -178,6 +200,7 @@ jobs:
   security-scan:
     name: Security Scan - ${{ matrix.pattern }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: get-patterns
     strategy:
       matrix:
@@ -201,6 +224,7 @@ jobs:
   terraform-test:
     name: Terraform Test - ${{ matrix.pattern }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: get-patterns
     strategy:
       matrix:
@@ -210,6 +234,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Cache Terraform providers
+        uses: actions/cache@v4
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl') }}
+          restore-keys: |
+            ${{ runner.os }}-terraform-
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -233,6 +265,8 @@ jobs:
         run: |
           cd architectures/${{ matrix.pattern }}/gcp
           terraform init -backend=false
+        env:
+          TF_PLUGIN_CACHE_DIR: ~/.terraform.d/plugin-cache
 
       - name: Run Terraform Tests
         if: steps.check-tests.outputs.has_tests == 'true'
@@ -243,6 +277,7 @@ jobs:
   ci-summary:
     name: CI Summary
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs:
       - get-patterns
       - terraform-format
