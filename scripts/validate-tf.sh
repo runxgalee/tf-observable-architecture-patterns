@@ -1,8 +1,8 @@
 #!/bin/bash
 set -e
 
-# Usage: ./scripts/validate-pattern.sh <pattern-name>
-# Example: ./scripts/validate-pattern.sh event-driven
+# Usage: ./scripts/validate-tf.sh <pattern-name>
+# Example: ./scripts/validate-tf.sh event-driven
 
 PATTERN=$1
 REPO_ROOT=$(git rev-parse --show-toplevel)

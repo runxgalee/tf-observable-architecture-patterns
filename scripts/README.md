@@ -9,17 +9,17 @@ Validates a specific architecture pattern by running Terraform format check, val
 ### Usage
 
 ```bash
-./scripts/validate-pattern.sh <pattern-name>
+./scripts/validate-tf.sh <pattern-name>
 ```
 
 ### Example
 
 ```bash
 # Validate the event-driven pattern
-./scripts/validate-pattern.sh event-driven
+./scripts/validate-tf.sh event-driven
 
 # Show available patterns (no argument)
-./scripts/validate-pattern.sh
+./scripts/validate-tf.sh
 ```
 
 ### What it does
