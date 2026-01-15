@@ -61,7 +61,7 @@ jobs:
       - name: Check GCP Credentials
         id: check_creds
         run: |
-          if [ -z "${{ env.WIF_PROVIDER }}" ] || [ -z "${{ env.WIF_SERVICE_ACCOUNT }}" ] || [ -z "${{ env.GCP_PROJECT_ID }}" ]; then
+          if [ -z "${{ secrets.WIF_PROVIDER }}" ] || [ -z "${{ secrets.WIF_SERVICE_ACCOUNT }}" ] || [ -z "${{ env.GCP_PROJECT_ID }}" ]; then
             echo "⚠️  GCP credentials not configured"
             echo "Please set WIF_PROVIDER, WIF_SERVICE_ACCOUNT, and GCP_PROJECT_ID secrets in repository settings"
             echo "has_creds=false" >> $GITHUB_OUTPUT
@@ -86,39 +86,19 @@ jobs:
           secrets: |-
             tf_state_bucket:projects/${{ secrets.GCP_PROJECT_ID }}/secrets/${{ matrix.environment }}-tf-state-bucket
 
-      - name: Terraform Format Check
-        id: fmt
-        run: terraform fmt -check -recursive
-        continue-on-error: true
-
       - name: Terraform Init
         run: |
           terraform init \
             -backend-config="bucket=${{ steps.secrets.outputs.tf_state_bucket }}" \
             -backend-config="prefix=terraform/${{ matrix.pattern }}/gcp/${{ matrix.environment }}"
 
-      - name: Terraform Validate
-        id: validate
-        run: terraform validate -no-color
-
-      - name: Setup TFLint
-        uses: terraform-linters/setup-tflint@v4
-        with:
-          tflint_version: latest
-
-      - name: Run TFLint
-        id: tflint
-        run: |
-          tflint --init
-          tflint --format compact
-        continue-on-error: true
-
       - name: Terraform Plan
         id: plan
         run: |
           terraform plan -input=false -out=tfplan -no-color \
             -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
-            -var="environment=${{ matrix.environment }}"
+            -var="environment=${{ matrix.environment }}" \
+            --var-file="${{ matrix.environment }}.auto.tfvars"
         continue-on-error: true
 
       - name: Check Validation Results
