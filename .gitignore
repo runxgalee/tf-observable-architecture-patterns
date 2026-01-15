@@ -37,3 +37,6 @@ service-account-key.json
 .claude/
 .serena/
 .mcp.json
+
+# Examples
+node_modules/
