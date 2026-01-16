@@ -44,6 +44,7 @@ variable "terraform_roles" {
     "roles/run.admin",
     "roles/pubsub.admin",
     "roles/iam.serviceAccountAdmin",
+    "roles/iam.serviceAccountUser",
     "roles/resourcemanager.projectIamAdmin",
   ]
 }
