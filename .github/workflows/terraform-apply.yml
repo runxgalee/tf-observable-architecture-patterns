@@ -142,8 +142,7 @@ jobs:
         run: |
           terraform plan -input=false -out=tfplan -no-color \
             -var="project_id=${{ vars.GCP_PROJECT_ID }}" \
-            -var="environment=${{ matrix.environment }}" \
-            --var-file="${{ matrix.environment }}.auto.tfvars"
+            -var="environment=${{ matrix.environment }}"
         continue-on-error: true
 
       - name: Terraform Apply
