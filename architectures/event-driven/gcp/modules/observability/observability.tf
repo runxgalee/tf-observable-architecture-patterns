@@ -347,7 +347,6 @@ resource "google_monitoring_dashboard" "event_driven_dashboard" {
               }
               thresholds = [{
                 value = var.dlq_alert_threshold
-                color = "RED"
               }]
             }
           }
