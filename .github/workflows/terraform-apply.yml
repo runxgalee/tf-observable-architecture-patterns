@@ -100,7 +100,6 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
-          terraform_wrapper: false
 
       - name: Check GCP Credentials
         id: check_creds
@@ -140,27 +139,32 @@ jobs:
 
       - name: Terraform Plan
         id: plan
+        continue-on-error: true
         run: |
-          set +e
           terraform plan -input=false -out=tfplan -no-color \
             -var-file="${{ matrix.environment }}.auto.tfvars" \
-            -var="project_id=${{ vars.GCP_PROJECT_ID }}" 2>&1
-          EXIT_CODE=$?
-          echo "Terraform plan exit code: $EXIT_CODE"
-          if [ $EXIT_CODE -ne 0 ]; then
-            echo "::error::Terraform plan failed with exit code $EXIT_CODE"
+            -var="project_id=${{ vars.GCP_PROJECT_ID }}"
+
+      - name: Check Plan Result
+        id: plan_check
+        run: |
+          echo "Plan exit code: ${{ steps.plan.outputs.exitcode }}"
+          echo "Plan outcome: ${{ steps.plan.outcome }}"
+          if [ "${{ steps.plan.outputs.exitcode }}" == "0" ]; then
+            echo "success=true" >> $GITHUB_OUTPUT
+          else
+            echo "success=false" >> $GITHUB_OUTPUT
           fi
-          exit $EXIT_CODE
-        continue-on-error: true
 
       - name: Terraform Apply
-        if: steps.plan.outcome == 'success'
+        if: steps.plan_check.outputs.success == 'true'
         run: terraform apply -auto-approve tfplan
 
       - name: Comment on failure
-        if: steps.plan.outcome == 'failure'
+        if: steps.plan_check.outputs.success == 'false'
         run: |
           echo "::error::Terraform plan failed for ${{ matrix.pattern }}/${{ matrix.environment }}"
+          echo "Exit code: ${{ steps.plan.outputs.exitcode }}"
           exit 1
 
   summary:
