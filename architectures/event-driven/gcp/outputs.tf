@@ -1,3 +1,14 @@
+# Artifact Registry Outputs
+output "artifact_registry_repository_id" {
+  description = "Artifact Registry repository ID"
+  value       = module.artifact_registry.repository_id
+}
+
+output "artifact_registry_url" {
+  description = "Artifact Registry URL for docker push/pull"
+  value       = module.artifact_registry.repository_url
+}
+
 # Pub/Sub Outputs
 output "topic_name" {
   description = "Pub/Sub topic name"

@@ -9,6 +9,16 @@ locals {
   resource_prefix = "${var.environment}-${var.project_name}"
 }
 
+# Step 0: Create Artifact Registry (no dependencies)
+module "artifact_registry" {
+  source = "./modules/artifact_registry"
+
+  project_id   = var.project_id
+  region       = var.region
+  environment  = var.environment
+  project_name = var.project_name
+}
+
 # Step 1: Create Service Accounts (no dependencies)
 module "service_accounts" {
   source = "./modules/service_accounts"
@@ -34,7 +44,7 @@ module "cloudrun" {
   service_account_email = module.service_accounts.cloud_run_service_account_email
 
   # Cloud Run Configuration
-  container_image      = var.container_image
+  container_image      = "asia-northeast1-docker.pkg.dev/${var.project_id}/cloudrun-images/event-handler:release"
   min_instances        = var.min_instances
   max_instances        = var.max_instances
   concurrency          = var.concurrency
