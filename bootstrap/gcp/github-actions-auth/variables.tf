@@ -30,11 +30,20 @@ variable "terraform_roles" {
   description = "List of IAM roles to grant to the GitHub Actions service account"
   type        = list(string)
   default = [
+    # Compute & Storage
     "roles/compute.admin",
     "roles/storage.admin",
+    # Observability
     "roles/logging.admin",
     "roles/monitoring.admin",
     "roles/cloudtrace.admin",
+    # Service Usage
     "roles/serviceusage.serviceUsageConsumer",
+    # Event-Driven Architecture
+    "roles/artifactregistry.admin",
+    "roles/run.admin",
+    "roles/pubsub.admin",
+    "roles/iam.serviceAccountAdmin",
+    "roles/resourcemanager.projectIamAdmin",
   ]
 }
