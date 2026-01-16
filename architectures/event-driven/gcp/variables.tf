@@ -84,12 +84,6 @@ variable "enable_exactly_once_delivery" {
   default     = false
 }
 
-# Cloud Run Configuration
-variable "container_image" {
-  description = "Container image for Cloud Run service (e.g., 'gcr.io/project/image:tag')"
-  type        = string
-}
-
 variable "min_instances" {
   description = "Minimum number of Cloud Run instances (0 to allow scaling to zero)"
   type        = number
