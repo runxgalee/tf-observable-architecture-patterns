@@ -104,7 +104,7 @@ jobs:
       - name: Check GCP Credentials
         id: check_creds
         run: |
-          if [ -z "${{ secrets.WIF_PROVIDER }}" ] || [ -z "${{ secrets.WIF_SERVICE_ACCOUNT }}" ] || [ -z "${{ env.GCP_PROJECT_ID }}" ]; then
+          if [ -z "${{ secrets.WIF_PROVIDER }}" ] || [ -z "${{ secrets.WIF_SERVICE_ACCOUNT }}" ] || [ -z "${{ vars.GCP_PROJECT_ID }}" ]; then
             echo "::error::GCP credentials not configured"
             echo "Please set WIF_PROVIDER, WIF_SERVICE_ACCOUNT, and GCP_PROJECT_ID secrets in repository settings"
             echo "has_creds=false" >> $GITHUB_OUTPUT
@@ -127,7 +127,7 @@ jobs:
         uses: google-github-actions/get-secretmanager-secrets@v3
         with:
           secrets: |-
-            tf_state_bucket:projects/${{ secrets.GCP_PROJECT_ID }}/secrets/${{ matrix.environment }}-tf-state-bucket
+            tf_state_bucket:projects/${{ vars.GCP_PROJECT_ID }}/secrets/${{ matrix.environment }}-tf-state-bucket
 
       - name: Terraform Init
         run: |
@@ -141,7 +141,7 @@ jobs:
         id: plan
         run: |
           terraform plan -input=false -out=tfplan -no-color \
-            -var="project_id=${{ secrets.GCP_PROJECT_ID }}" \
+            -var="project_id=${{ vars.GCP_PROJECT_ID }}" \
             -var="environment=${{ matrix.environment }}" \
             --var-file="${{ matrix.environment }}.auto.tfvars"
         continue-on-error: true
