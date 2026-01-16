@@ -4,6 +4,9 @@ resource "google_cloud_run_v2_service" "event_processor" {
   location = var.region
   project  = var.project_id
 
+  # Allow deletion in non-production environments
+  deletion_protection = var.environment == "prod" ? true : false
+
   template {
     service_account = var.service_account_email
 
