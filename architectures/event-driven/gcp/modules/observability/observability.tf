@@ -347,7 +347,6 @@ resource "google_monitoring_dashboard" "event_driven_dashboard" {
               }
               thresholds = [{
                 value     = var.dlq_alert_threshold
-                color     = "RED"
                 direction = "ABOVE"
               }]
             }
@@ -366,7 +365,7 @@ resource "google_monitoring_dashboard" "event_driven_dashboard" {
               dataSets = [{
                 timeSeriesQuery = {
                   timeSeriesFilter = {
-                    filter = "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"${var.cloud_run_service_name}\" AND severity>=ERROR"
+                    filter = "metric.type=\"logging.googleapis.com/user/${local.resource_prefix}_error_reporting\" AND resource.type=\"cloud_run_revision\""
                     aggregation = {
                       alignmentPeriod    = "60s"
                       perSeriesAligner   = "ALIGN_RATE"
@@ -439,7 +438,7 @@ resource "google_monitoring_alert_policy" "error_reporting_alert" {
     display_name = "High error rate detected"
 
     condition_threshold {
-      filter          = "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"${var.cloud_run_service_name}\" AND severity>=ERROR"
+      filter          = "metric.type=\"logging.googleapis.com/user/${local.resource_prefix}_error_reporting\" AND resource.type=\"cloud_run_revision\""
       duration        = "60s"
       comparison      = "COMPARISON_GT"
       threshold_value = var.error_reporting_threshold
@@ -471,6 +470,8 @@ resource "google_monitoring_alert_policy" "error_reporting_alert" {
   }
 
   enabled = true
+
+  depends_on = [google_logging_metric.error_reporting_metric]
 }
 
 # Trace sampling configuration is handled at application level
