@@ -34,7 +34,6 @@ service-account-key.json
 *.key
 
 # AI Tools
-.claude/
 .serena/
 .mcp.json
 
